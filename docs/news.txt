@@ -1,0 +1,11 @@
+News: keepassdb
+===============
+
+.. contents::
+
+0.1.0
+-----
+* Original fork of kppy project.
+* Added a changelog ;)
+* Refactored into several modules, added documentation.
+* New factory methods for loading existing or new databases.

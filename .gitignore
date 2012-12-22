@@ -1,0 +1,9 @@
+.*
+*.egg
+*.egg-info
+*.pyc
+env
+build
+dist
+*.kdb
+*.lock
