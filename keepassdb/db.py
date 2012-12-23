@@ -101,9 +101,11 @@ class Database(object):
         self._filepath = value
         
     def initialize_empty(self):
-        group = Group(id=1, title='Internet', icon=1, db=self, parent=self._root_group)
-        self._root_group.children.append(group)
-        self.groups.append(group)
+        """
+        Initialize the database with a defaut 'Internet' group.
+        """
+        assert len(self.groups) == 0, "initialize_empty() should only be used with a new database."
+        self.create_group('Internet', icon=1)
                 
     def load(self, filepath, password=None, keyfile=None, readonly=False):
         self.filepath = filepath
@@ -170,7 +172,7 @@ class Database(object):
         # First thing (after header) are the group definitions.
         for _i in range(self.header.ngroups):
             gstruct = GroupStruct(decrypted_content)
-            self.groups.append(Group.from_struct(gstruct)) # TODO: The parent/children stuff is set later
+            self.groups.append(Group.from_struct(gstruct))
             length = len(gstruct)
             decrypted_content = decrypted_content[length:]
         
@@ -181,6 +183,7 @@ class Database(object):
             length = len(estruct)
             decrypted_content = decrypted_content[length:]
             
+        # Sets up the hierarchy, relates the group/entry model objects.
         self._bind_model()
         
     def save(self, filepath=None, password=None, keyfile=None):
@@ -212,14 +215,14 @@ class Database(object):
         
         buf = bytearray()
         
-        # First, read out all groups
+        # First, serialize the groups
         for group in self.groups:
-            
             # Get the packed bytes
             group_struct = group.to_struct()
+            self.log.debug("Group struct: {0!r}".format(group_struct))
             buf += group_struct.encode()
             
-        # Same with entries
+        # Then the entries.
         for entry in self._entries:
             entry_struct = entry.to_struct()
             buf += entry_struct.encode()
@@ -247,6 +250,9 @@ class Database(object):
                                     rounds=header.key_enc_rounds,
                                     password=password, keyfile=keyfile)
         
+        
+        print "Serialized payload: {0!r}".format(buf)
+        
         encrypted_content = util.encrypt_aes_cbc(buf, key=final_key, iv=header.encryption_iv)
         
         with open(self.filepath, "wb") as fp:
@@ -270,14 +276,15 @@ class Database(object):
         
         if expires is None:
             expires = const.NEVER
-            
-        id = max([g.id for g in self.groups]) + 1
         
-        group = Group(id=id, title=title, icon=icon, db=self)
-        group.creation = util.now()
-        group.last_mod = util.now()
-        group.last_access = util.now()
-        group.expires = expires
+        if self.groups:
+            group_id = max([g.id for g in self.groups]) + 1
+        else:
+            group_id = 1
+        
+        group = Group(id=group_id, title=title, icon=icon, db=self, 
+                      created=util.now(), modified=util.now(), accessed=util.now(),
+                      expires=expires)
         
         # If no parent is given, just append the new group at the end
         if parent is None:
@@ -285,6 +292,7 @@ class Database(object):
             self._root_group.children.append(group)
             group.level = 0
             self.groups.append(group)
+            
         # Else insert the group behind the parent
         else:
             if parent in self.groups:
@@ -434,6 +442,7 @@ class Database(object):
         uuid = binascii.hexlify(get_random_bytes(16))
         
         entry = Entry(uuid=uuid,
+                      group_id=group.id,
                       created=util.now(),
                       modified=util.now(),
                       accessed=util.now(),
@@ -518,7 +527,8 @@ class Database(object):
         """This method creates a group tree"""
 
         if self.groups[0].level != 0:
-            raise ValueError("Invalid group tree: first group must have level of 0")
+            self.log.info("Got invalid first group: {0}".format(self.groups[0]))
+            raise ValueError("Invalid group tree: first group must have level of 0 (got {0})".format(self.groups[0].level))
         
         # The KeePassX source code maintains that first group to have incremented 
         # level is a child of the previous group with a lower level
@@ -638,7 +648,7 @@ class LockingDatabase(Database):
         :raise keepassdb.exc.DatabaseAlreadyLocked: If the database is already locked (and force not set to True)
         """
         if self.readonly:
-            raise ReadOnlyDatabase()
+            raise exc.ReadOnlyDatabase()
         if not self._locked:
             self.log.debug("Acquiring lock file: {0}".format(self.lockfile))
             if os.path.exists(self.lockfile) and not force:
@@ -653,7 +663,7 @@ class LockingDatabase(Database):
         :param force: Whether to force releasing the lock (e.g. if it was not acquired during this session).
         """
         if self.readonly:
-            raise ReadOnlyDatabase()
+            raise exc.ReadOnlyDatabase()
         if self._locked or force:
             self.log.debug("Removing lock file: {0}".format(self.lockfile))
             if os.path.exists(self.lockfile):

@@ -139,7 +139,7 @@ class StructBase(object):
                 break
             try:
                 value = marshall.decode(encoded)
-                self.log.debug("Decoded field: {0} to value {1!r}".format(name, value))
+                self.log.debug("Decoded field [{0}] to value {1!r}".format(name, value))
             except struct.error, msg:
                 msg = '%s, typ=%d[size=%d] -> %s [buf = "%r"]' % \
                     (msg, typ, siz, self.format[typ], encoded)
@@ -158,7 +158,7 @@ class StructBase(object):
         
         :rtype: str
         """
-        buf = ""
+        buf = bytearray()
         for typ in sorted(self.format.keys()):
             encoded = None
             if typ != 0xFFFF: # end of block
@@ -167,6 +167,7 @@ class StructBase(object):
                 if value is not None:
                     try:
                         encoded = marshall.encode(value)
+                        self.log.debug("Encoded field [{0}] to value {1!r}".format(name, encoded))
                     except:
                         self.log.exception("Error encoding key/value: key={0}, value={1!r}".format(name, value))
                         raise
@@ -174,11 +175,12 @@ class StructBase(object):
             # Note, there is an assumption here that encode() func is returning
             # a byte string (so len = num bytes).  That should be a safe assumption.
             size = len(encoded) if encoded is not None else 0
-            buf = struct.pack('<H', typ)
-            buf += struct.pack('<I', size)
+            packed = struct.pack('<H', typ)
+            packed += struct.pack('<I', size)
             if encoded is not None:
-                buf += struct.pack('<%ds' % size, encoded)
-            buf += buf
+                packed += struct.pack('<%ds' % size, encoded)
+            buf += packed
+            
         return buf
 
     def path(self):

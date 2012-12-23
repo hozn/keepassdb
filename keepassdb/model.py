@@ -4,10 +4,9 @@ The keepass entity objects.
 """ 
 import abc
 import logging
-import uuid
 import base64
 
-from keepassdb import util, const, exc
+from keepassdb import util, const, exc, util
 from keepassdb.structures import GroupStruct, EntryStruct
 
 __authors__ = ["Karsten-Kai König <kkoenig@posteo.de>", "Hans Lellelid <hans@xmpl.org>"]
@@ -106,6 +105,19 @@ class Group(BaseModel):
         from the data structure.
         """
         super(Group, self).__init__()
+        if icon is None:
+            icon = 1            
+        if created is None:
+            created = util.now()
+        if modified is None:
+            modified = util.now()
+        if accessed is None:
+            accessed = util.now()
+        if expires is None:
+            expires = const.NEVER
+        if flags is None:
+            flags = 0  # XXX: Need to figure out what this is, but 0 seems to be the correct default
+        
         self.id = id
         self._title = title
         self._icon = icon
@@ -179,7 +191,7 @@ class Group(BaseModel):
         :keyword expires: Expiration date (if None, entry will never expire). 
         :type expires: datetime
         """
-        return self.db.create_entry(self, **kwargs)
+        return self.db.create_entry(group=self, **kwargs)
 
     def to_dict(self, hierarchy=True, show_passwords=False):
         d = dict(id=self.id,
@@ -233,8 +245,16 @@ class Entry(BaseModel):
         """
         super(Entry, self).__init__()
         if icon is None:
-            icon = 1
-            
+            icon = 1    
+        if created is None:
+            created = util.now()
+        if modified is None:
+            modified = util.now()
+        if accessed is None:
+            accessed = util.now()
+        if expires is None:
+            expires = const.NEVER
+
         self.uuid = uuid
         self.group_id = group_id
         self.group = group
@@ -351,6 +371,6 @@ class Entry(BaseModel):
                  modified=self.modified if self.modified != const.NEVER else None,
                  expires=self.expires if self.expires != const.NEVER else None,
                  binary_desc=self.binary_desc,
-                 binary=base64.b64encode(self.binary)
+                 binary=base64.b64encode(self.binary) if self.binary is not None else ''
                  )
         return d

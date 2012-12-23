@@ -1,7 +1,7 @@
 # keepassdb
 
 **IMPORTANT**
-This library is under active development and is not yet fully functional!
+This library is in rough and under active development.  Tread carefully!
 
 
 keepassdb is a python module to provide an API to read and write KeePass 1.x / KeePassX 
