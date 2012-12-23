@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 """
-__authors__ = ["Karsten-Kai König <kkoenig@posteo.de>"]
-__copyright__ = "Copyright (C) 2012 Karsten-Kai König <kkoenig@posteo.de>"
+__authors__ = ["Hans Lellelid <hans@xmpl.org>"]
 __license__ = """
 keepassdb is free software: you can redistribute it and/or modify it under the terms
 of the GNU General Public License as published by the Free Software Foundation,

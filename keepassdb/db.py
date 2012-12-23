@@ -5,7 +5,6 @@ This module implements the access to KeePass 1.x-databases.
 import binascii
 
 __authors__ = ["Karsten-Kai König <kkoenig@posteo.de>", "Hans Lellelid <hans@xmpl.org>", "Brett Viren <brett.viren@gmail.com>"]
-__copyright__ = "Copyright (C) 2012 Karsten-Kai König <kkoenig@posteo.de>"
 __license__ = """
 keepassdb is free software: you can redistribute it and/or modify it under the terms
 of the GNU General Public License as published by the Free Software Foundation,
@@ -31,34 +30,13 @@ from keepassdb.structures import HeaderStruct, GroupStruct, EntryStruct
 
 class Database(object):
     """
-    Database represents the KeePass 1.x database.
+    This class represents the KeePass database.
     
-    Attributes:
-    - groups holds all groups of the database. (list of StdGroups)
-    - readonly declares if the file should be read-only or not (bool)
-    - filepath holds the path of the database (string)
-    - password is the passphrase to encrypt and decrypt the database (string)
-    - keyfile is the path to a keyfile (string)
-    
-    Usage:
-    
-    You can load a KeePass database by the filename and the passphrase or
-    create an empty database. It's also possible to open the database read-only
-    and to create a new one.
-    
-    Example:
-    
-    from keepassdb import Database
-    
-    try:
-        db = Database.load(filepath, passphrase)
-    except Exception as e:
-        print(e)
-    
-    try:
-        db = Database.create()
-    except Exception as e:
-        print(e)
+    :ivar groups: THe groups 
+    :ivar readonly: Whether database was opened read-only.
+    :ivar filepath: The path to the database that is opened or will be written.
+    :ivar password: The passphrase to use to encrypt the database.
+    :ivar keyfile: A path to a keyfile that can be used instead or in combination with passphrase.
     """
     readonly = False
     header = None
@@ -69,10 +47,6 @@ class Database(object):
     def __init__(self, filepath=None, password=None, keyfile=None, readonly=False, new=False):
         """
         Initialize a new or an existing database.
-        
-        The default constructor should only be called internally; you should use the
-        Database::load() or Database::create() methods to load or create a new
-        database, respectively. 
         """
         self.log = logging.getLogger('{0.__module__}.{0.__name__}'.format(self.__class__))
         self.groups = []
@@ -250,9 +224,6 @@ class Database(object):
                                     rounds=header.key_enc_rounds,
                                     password=password, keyfile=keyfile)
         
-        
-        print "Serialized payload: {0!r}".format(buf)
-        
         encrypted_content = util.encrypt_aes_cbc(buf, key=final_key, iv=header.encryption_iv)
         
         with open(self.filepath, "wb") as fp:
@@ -295,13 +266,12 @@ class Database(object):
             
         # Else insert the group behind the parent
         else:
-            if parent in self.groups:
-                parent.children.append(group)
-                group.parent = parent
-                group.level = parent.level + 1
-                self.groups.insert(self.groups.index(parent) + 1, group)
-            else:
-                raise exc.KPError("Given parent doesn't exist")
+            if parent not in self.groups:
+                raise ValueError("Group doesn't exist / is not bound to this database.")
+            parent.children.append(group)
+            group.parent = parent
+            group.level = parent.level + 1
+            self.groups.insert(self.groups.index(parent) + 1, group)
                 
         return group
 
@@ -311,8 +281,8 @@ class Database(object):
         """
         if not isinstance(group, Group):
             raise TypeError("group must be Group")
-        if not group in self.groups:
-            raise ValueError("Group does not exist (or is not bound to this db instance).")
+        if group not in self.groups:
+            raise ValueError("Group doesn't exist / is not bound to this database.")
         
         # Recurse down to remove sub-groups
         for child in group.children: # We may need to copy this to avoid CME (see below)
@@ -326,83 +296,78 @@ class Database(object):
         self.groups.remove(group)
         
             
-    def move_group(self, group=None, parent=None):
-        """Append group to a new parent.
-
-        group and parent must be Group-instances.
-
+    def move_group(self, group, parent):
         """
-
-        if group is None or type(group) is not Group:
-            raise exc.KPError("A valid group must be given.")
+        Append group to a new parent.
+        """
+        if not isinstance(group, Group):
+            raise TypeError("group param must be of type Group")
+        if parent is not None and not isinstance(parent, Group):
+            raise TypeError("parent param must be of type Group")
             
-        elif parent is not None and type(parent) is not Group:
-            raise exc.KPError("parent must be a Group.")
+        if group is parent:
+            raise ValueError("group and parent are the same")
             
-        elif group is parent:
-            raise exc.KPError("group and parent must not be the same group")
+        if parent is None:
+            parent = self._root_group
             
-        if parent is None: parent = self._root_group;
-        if group in self.groups:
-            self.groups.remove(group)
-            group.parent.children.remove(group)
-            group.parent = parent
-            if parent.children:
-                if parent.children[-1] is self.groups[-1]:
-                    self.groups.append(group)
-                else:
-                    new_index = self.groups.index(parent.children[-1]) + 1
-                    self.groups.insert(new_index, group)
+        if group not in self.groups:
+            raise ValueError("Group doesn't exist / is not bound to this database.")
+    
+        self.groups.remove(group)
+        group.parent.children.remove(group)
+        group.parent = parent
+        if parent.children:
+            if parent.children[-1] is self.groups[-1]:
+                self.groups.append(group)
             else:
-                new_index = self.groups.index(parent) + 1
+                new_index = self.groups.index(parent.children[-1]) + 1
                 self.groups.insert(new_index, group)
-            parent.children.append(group)
-            if parent is self._root_group:
-                group.level = 0
-            else:
-                group.level = parent.level + 1
-            if group.children:
-                self._move_group_helper();
-            group.last_mod = util.now()
-            return True
         else:
-            raise exc.KPError("Didn't find given group.")
+            new_index = self.groups.index(parent) + 1
+            self.groups.insert(new_index, group)
+        parent.children.append(group)
+        if parent is self._root_group:
+            group.level = 0
+        else:
+            group.level = parent.level + 1
+        if group.children:
+            self._move_group_helper();
             
+        group.modified = util.now()            
 
-    def move_group_in_parent(self, group=None, index=None):
-        """Move group to another position in group's parent.
-        
-        index must be a valid index of group.parent.groups
-
+    def move_group_in_parent(self, group, index):
         """
+        Move group to another position in group's parent.
         
-        if group is None or index is None:
-            raise exc.KPError("group and index must be set")
+        :param group: The Group object to move.
+        :type group: :class:`keepassdb.model.Group`
+        :param index: The 0-based index for the new position within parent group.
+        :type index: int
+        """
+        if not isinstance(group, Group):
+            raise TypeError("group param must be of type Group")
             
-        elif type(group) is not Group or type(index) is not int:
-            raise exc.KPError("group must be a Group-instance and index "
-                          "must be an integer.")
+        if group not in self.groups:
+            raise ValueError("Group doesn't exist / is not bound to this database.")
             
-        elif group not in self.groups:
-            raise exc.KPError("Given group doesn't exist")
-            
-        elif index < 0 or index >= len(group.parent.children):
-            raise exc.KPError("index must be a valid index if group.parent.groups")
-            
-        else:
-            group_at_index = group.parent.children[index]
-            pos_in_parent = group.parent.children.index(group) 
-            pos_in_groups = self.groups.index(group)
-            pos_in_groups2 = self.groups.index(group_at_index)
+        if index < 0 or index >= len(group.parent.children):
+            raise IndexError("index must be a valid index if group.parent.groups")
+    
+        group_at_index = group.parent.children[index]
+        pos_in_parent = group.parent.children.index(group) 
+        pos_in_groups = self.groups.index(group)
+        pos_in_groups2 = self.groups.index(group_at_index)
 
-            group.parent.children[index] = group
-            group.parent.children[pos_in_parent] = group_at_index
-            self.groups[pos_in_groups2] = group
-            self.groups[pos_in_groups] = group_at_index
-            if group.children: self._move_group_helper(group);
-            if group_at_index.children: self._move_group_helper(group_at_index);
-            group.last_mod = util.now()
-            return True
+        group.parent.children[index] = group
+        group.parent.children[pos_in_parent] = group_at_index
+        self.groups[pos_in_groups2] = group
+        self.groups[pos_in_groups] = group_at_index
+        if group.children:
+            self._move_group_helper(group);
+        if group_at_index.children:
+            self._move_group_helper(group_at_index);
+        group.modified = util.now()
 
     def _move_group_helper(self, group):
         """
@@ -459,45 +424,41 @@ class Database(object):
         :param entry: The Entry object to remove.
         :type entry: pwmanager.model.Entry
         """
+        if not isinstance(entry, Entry):
+            raise TypeError("entry param must be of type Entry.")
+        if not entry in self._entries:
+            raise ValueError("Entry doesn't exist / not bound to this datbase.")
         
-        if entry is None or type(entry) is not Entry:
-            raise exc.KPError("Need an entry.")
-            
-        elif entry in self._entries:
-            entry.group.entries.remove(entry)
-            self._entries.remove(entry)
-            self._num_entries -= 1
-            return True
-        else:
-            raise exc.KPError("Given entry doesn't exist.")
-            
+        entry.group.entries.remove(entry)
+        self._entries.remove(entry)
 
-    def move_entry(self, entry=None, group=None):
-        """Move an entry to another group.
-
-        A Group group and a StdEntrytry are needed.
-
+    def move_entry(self, entry, group):
         """
-
-        if entry is None or group is None or type(entry) is not Entry or \
-            type(group) is not Group:
-            raise exc.KPError("Need an entry and a group.")
-            
-        elif entry not in self._entries:
-            raise exc.KPError("No entry found.")
-            
-        elif group in self.groups:
-            entry.group.entries.remove(entry)
-            group.entries.append(entry)
-            entry.group_id = group.id
-            return True
-        else:
-            raise exc.KPError("No group found.")
-            
-                
+        Move an entry to another group.
+        
+        :param entry: The Entry object to move.
+        :type entry: :class:`keepassdb.model.Entry`
+        
+        :param group: The new parent Group object for the entry.
+        :type group: :class:`keepassdb.model.Group`
+        """
+        if not isinstance(entry, Entry):
+            raise TypeError("entry param must be of type Entry")
+        if not isinstance(group, Group):
+            raise TypeError("group param must be of type Group")
+        
+        if entry not in self._entries:
+            raise ValueError("Invalid entry (or not bound to this database): {0!r}".format(entry))
+        if group not in self.groups:
+            raise ValueError("Invalid group (or not bound to this database): {0!r}".format(group))
+        
+        entry.group.entries.remove(entry)
+        group.entries.append(entry)
+        entry.group_id = group.id
+        
     def move_entry_in_group(self, entry, index):
         """
-        Move entry to specified position in specified group.
+        Move entry to specified position in its current group.
 
         :param entry: The Entry object to move.
         :type entry: :class:`keepassdb.model.Entry`

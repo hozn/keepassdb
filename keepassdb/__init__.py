@@ -3,7 +3,7 @@
 This module implements the access to KeePass 1.x-databases.
 """
 
-__authors__ = ["Karsten-Kai König <kkoenig@posteo.de>", "Hans Lellelid <hans@xmpl.org>"]
+__authors__ = ["Hans Lellelid <hans@xmpl.org>"]
 __copyright__ = "Copyright (C) 2012 Karsten-Kai König <kkoenig@posteo.de>"
 __license__ = """
 keepassdb is free software: you can redistribute it and/or modify it under the terms
