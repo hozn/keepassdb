@@ -32,37 +32,66 @@ class Database(object):
     """
     This class represents the KeePass database.
     
-    :ivar groups: THe groups 
+    :ivar root: The group-like virtual root object (not actually part of database).
+    :type root: :class:`keepassdb.model.RootGroup`
+    :ivar groups: The groups 
     :ivar readonly: Whether database was opened read-only.
     :ivar filepath: The path to the database that is opened or will be written.
     :ivar password: The passphrase to use to encrypt the database.
     :ivar keyfile: A path to a keyfile that can be used instead or in combination with passphrase.
     """
+    root = None
     readonly = False
     header = None
     password = None
     keyfile = None
     _filepath = None
     
-    def __init__(self, filepath=None, password=None, keyfile=None, readonly=False, new=False):
+    def __init__(self, dbfile=None, password=None, keyfile=None, readonly=False, new=False):
         """
         Initialize a new or an existing database.
+        
+        :param dbfile: The path to the database file or a file-like object from which to read the database.
+        :type dbfile: str or file
+        :param password: Passphrase from which to derive key for file.
+        :param password: str
+        :param keyfile: The keyfile to use instead of or in conjunction with passphrase.
+        :param keyfile: str or file
+        :param readonly: Whether to open the database read-only (e.g. if already open in another process)
+        :type readonly: bool
+        :param new: Whether this is a new database (only necessary when specifying filepath so that file 
+                   will not attempt to be loaded).
+        :type new: bool
         """
         self.log = logging.getLogger('{0.__module__}.{0.__name__}'.format(self.__class__))
-        self.groups = []
-        self.password = None
-        self.keyfile = None
         
-        self._entries = []
-        self._root_group = RootGroup()
+        
+        self.password = password
+        self.keyfile = keyfile
+        
+        self.root = RootGroup()
+        self.groups = []
+        self.entries = []
         
         if new:
-            self.filepath = filepath
-            self.password = password
-            self.keyfile = keyfile
-            self.initialize_empty()
-        elif filepath:
-            self.load(filepath, password=password, keyfile=keyfile, readonly=readonly)
+            if hasattr(dbfile, 'read'):
+                raise TypeError("Cannot specify file object for new database")
+            self.filepath = dbfile # XXX: Consider if we should be invoking the setter here or not.
+        elif dbfile:
+            self.load(dbfile, password=password, keyfile=keyfile, readonly=readonly)
+    
+    def _clear(self):
+        """
+        Resets/clears out internal object state.
+        """
+        self.root = RootGroup()
+        self.groups = []
+        self.entries = []
+        self.readonly = False
+        self.header = None
+        self.password = None
+        self.keyfile = None
+        self.filepath = None
     
     @property
     def filepath(self):
@@ -74,24 +103,29 @@ class Database(object):
         """ Proerty for setting current filepath. """
         self._filepath = value
         
-    def initialize_empty(self):
+    def create_default_group(self):
         """
-        Initialize the database with a defaut 'Internet' group.
+        Create a default 'Internet' group on an empty database.
+        
+        :return The new Internet group.
+        :rtype :class:`keepassdb.model.Group`
         """
         assert len(self.groups) == 0, "initialize_empty() should only be used with a new database."
-        self.create_group('Internet', icon=1)
+        return self.create_group(u'Internet', icon=1)
                 
-    def load(self, filepath, password=None, keyfile=None, readonly=False):
-        self.filepath = filepath
+    def load(self, dbfile, password=None, keyfile=None, readonly=False):
+        self._clear()
         buf = None
-        if hasattr(filepath, 'read'):
-            buf = filepath.read()
+        if hasattr(dbfile, 'read'):
+            buf = dbfile.read()
         else:
-            # Assume it is a filepath and attempt to open it.
-            if not os.path.exists(filepath):
-                raise ValueError("File does not exist: {}".format(filepath))
-        
-            with open(filepath, 'rb') as fp:
+            if not os.path.exists(dbfile):
+                raise IOError("File does not exist: {}".format(dbfile))
+            
+            # Assume it is a path and attempt to open it.
+            self.filepath = dbfile
+            
+            with open(dbfile, 'rb') as fp:
                 buf = fp.read()
                 
         self.load_from_buffer(buf, password=password, keyfile=keyfile, readonly=readonly)
@@ -153,30 +187,36 @@ class Database(object):
         # Next come the entry definitions.
         for _i in range(self.header.nentries):
             estruct = EntryStruct(decrypted_content)
-            self._entries.append(Entry.from_struct(estruct))
+            self.entries.append(Entry.from_struct(estruct))
             length = len(estruct)
             decrypted_content = decrypted_content[length:]
             
         # Sets up the hierarchy, relates the group/entry model objects.
         self._bind_model()
         
-    def save(self, filepath=None, password=None, keyfile=None):
+    def save(self, dbfile=None, password=None, keyfile=None):
         """
         Save the database.
         
         Password or keyfile (or both) required.  If database was loaded 
          
-        :param filepath: The path to the file we wish to save.
+        :param dbfile: The path to the file we wish to save.
+        :type dbfile: The path to the database file or a file-like object.
+        
         :param password: The password to use for the database.
         :param keyfile: The keyfile to use for the database.
         
         :raise keepassdb.exc.ReadOnlyDatabase: If database was opened with readonly flag.
         """
         if self.readonly:
+            # We might wish to make this more sophisticated.  E.g. if a new path is specified
+            # as a parameter, then it's probably ok to ignore a readonly flag?  In general
+            # this flag doens't make a ton of sense for a library ...
             raise exc.ReadOnlyDatabase()
         
-        if filepath is not None:
-            self.filepath = filepath
+        if dbfile is not None and not hasattr(dbfile, 'write'):
+            self.filepath = dbfile
+            
         if password is not None or self.keyfile is not None:
             # Do these together so we don't end up with some hybrid of old & new key material
             self.password = password
@@ -184,8 +224,8 @@ class Database(object):
         else: 
             raise ValueError("Password and/or keyfile is required.")
         
-        if self.filepath is None:
-            raise ValueError("Unable to save file without filepath.")
+        if self.filepath is None and dbfile is None:
+            raise ValueError("Unable to save without target file.")
         
         buf = bytearray()
         
@@ -197,7 +237,7 @@ class Database(object):
             buf += group_struct.encode()
             
         # Then the entries.
-        for entry in self._entries:
+        for entry in self.entries:
             entry_struct = entry.to_struct()
             buf += entry_struct.encode()
 
@@ -216,7 +256,7 @@ class Database(object):
         header.contents_hash = hashlib.sha256(buf).digest()
         
         # Update num groups/entries to match curr state
-        header.nentries = len(self._entries)
+        header.nentries = len(self.entries)
         header.ngroups = len(self.groups)
         
         final_key = util.derive_key(seed_key=header.seed_key,
@@ -226,9 +266,12 @@ class Database(object):
         
         encrypted_content = util.encrypt_aes_cbc(buf, key=final_key, iv=header.encryption_iv)
         
-        with open(self.filepath, "wb") as fp:
-            fp.write(header.encode() + encrypted_content)
-                    
+        if hasattr(dbfile, 'write'):
+            dbfile.write(header.encode() + encrypted_content)
+        else:
+            with open(self.filepath, "wb") as fp:
+                fp.write(header.encode() + encrypted_content)
+                        
     def create_group(self, title, parent=None, icon=1, expires=None):
         """
         This method creates a new group.
@@ -259,8 +302,8 @@ class Database(object):
         
         # If no parent is given, just append the new group at the end
         if parent is None:
-            group.parent = self._root_group
-            self._root_group.children.append(group)
+            group.parent = self.root
+            self.root.children.append(group)
             group.level = 0
             self.groups.append(group)
             
@@ -309,7 +352,7 @@ class Database(object):
             raise ValueError("group and parent are the same")
             
         if parent is None:
-            parent = self._root_group
+            parent = self.root
             
         if group not in self.groups:
             raise ValueError("Group doesn't exist / is not bound to this database.")
@@ -327,7 +370,7 @@ class Database(object):
             new_index = self.groups.index(parent) + 1
             self.groups.insert(new_index, group)
         parent.children.append(group)
-        if parent is self._root_group:
+        if parent is self.root:
             group.level = 0
         else:
             group.level = parent.level + 1
@@ -413,7 +456,7 @@ class Database(object):
                       accessed=util.now(),
                       **kwargs)
         
-        self._entries.append(entry)
+        self.entries.append(entry)
         group.entries.append(entry)
         
         return entry
@@ -426,11 +469,11 @@ class Database(object):
         """
         if not isinstance(entry, Entry):
             raise TypeError("entry param must be of type Entry.")
-        if not entry in self._entries:
+        if not entry in self.entries:
             raise ValueError("Entry doesn't exist / not bound to this datbase.")
         
         entry.group.entries.remove(entry)
-        self._entries.remove(entry)
+        self.entries.remove(entry)
 
     def move_entry(self, entry, group):
         """
@@ -447,7 +490,7 @@ class Database(object):
         if not isinstance(group, Group):
             raise TypeError("group param must be of type Group")
         
-        if entry not in self._entries:
+        if entry not in self.entries:
             raise ValueError("Invalid entry (or not bound to this database): {0!r}".format(entry))
         if group not in self.groups:
             raise ValueError("Invalid group (or not bound to this database): {0!r}".format(group))
@@ -471,18 +514,18 @@ class Database(object):
         if index < 0 or index >= len(entry.group.entries):
             raise IndexError("Index is not within allowable range.")
             
-        if entry not in self._entries:
+        if entry not in self.entries:
             raise ValueError("Entry does not exist (or not bound to this db instance).")
         
         pos_in_group = entry.group.entries.index(entry)
-        pos_in_entries = self._entries.index(entry)
+        pos_in_entries = self.entries.index(entry)
         entry_at_index = entry.group.entries[index]
-        pos_in_entries2 = self._entries.index(entry_at_index)
+        pos_in_entries2 = self.entries.index(entry_at_index)
 
         entry.group.entries[index] = entry
         entry.group.entries[pos_in_group] = entry_at_index
-        self._entries[pos_in_entries2] = entry
-        self._entries[pos_in_entries] = entry_at_index
+        self.entries[pos_in_entries2] = entry
+        self.entries[pos_in_entries] = entry_at_index
 
     def _bind_model(self):
         """This method creates a group tree"""
@@ -492,7 +535,7 @@ class Database(object):
             raise ValueError("Invalid group tree: first group must have level of 0 (got {0})".format(self.groups[0].level))
         
         # The KeePassX source code maintains that first group to have incremented 
-        # level is a child of the previous group with a lower level
+        # level is a child of the previous group with a lower level.
         #
         # [R]
         #  | A (1)
@@ -511,14 +554,16 @@ class Database(object):
             def push(self, el):
                 self.append(el)
 
-        # Consider replacing the below code (which is from KeePassX) with this version:  (Test it out ...)               
-        # 
-        parent_stack = Stack([self._root_group])        
-        current_parent = self._root_group
+        # This is a different parsing approach than taken by KeePassX (or other python               
+        # libs), but seems a little more intuitive.  It could be further simplified
+        # by noting that current_parent is always parent_stack[-1], but this is a bit
+        # more readable.
+        parent_stack = Stack([self.root])        
+        current_parent = self.root
         prev_group = None
         for g in self.groups:
             if prev_group is not None: # first iteration is exceptional
-                if g.level > prev_group.level: # Always true for iteration 1 since _root_group has level of -1
+                if g.level > prev_group.level: # Always true for iteration 1 since root has level of -1
                     # Dropping down a level; the previous group is the parent
                     current_parent = prev_group
                     parent_stack.push(current_parent)
@@ -533,8 +578,13 @@ class Database(object):
             current_parent.children.append(g)
             
             prev_group = g
-           
-        for entry in self._entries:
+        
+        # Bind database to group objects
+        for group in self.groups:
+            group.db = self
+            
+        # Bind group objects to entries
+        for entry in self.entries:
             for group in self.groups:
                 if entry.group_id == group.id:
                     group.entries.append(entry)
@@ -545,11 +595,11 @@ class Database(object):
         Closes the database.
         """
 
-    def to_dict(self, hierarchy=True, show_passwords=False):
+    def to_dict(self, hierarchy=True, hide_passwords=False):
         if hierarchy:
-            d = dict(groups=[g.to_dict(hierarchy=hierarchy, show_passwords=show_passwords) for g in self._root_group.children])
+            d = dict(groups=[g.to_dict(hierarchy=hierarchy, hide_passwords=hide_passwords) for g in self.root.children])
         else:
-            d = dict(groups=[g.to_dict(show_passwords=show_passwords) for g in self.groups])
+            d = dict(groups=[g.to_dict(hide_passwords=hide_passwords) for g in self.groups])
         return d
      
 class LockingDatabase(Database):

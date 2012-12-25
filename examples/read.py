@@ -18,4 +18,4 @@ if __name__ == '__main__':
     (opts,args) = parser.parse_args(sys.argv)
     
     with LockingDatabase(opts.database, password=opts.password) as db:
-        pprint(db.to_dict(hierarchy=True, show_passwords=True))
+        pprint(db.to_dict(hierarchy=True, hide_passwords=True))

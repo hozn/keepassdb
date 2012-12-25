@@ -48,6 +48,8 @@ def key_from_keyfile(keyfile):
     """
     This method reads in the bytes in the keyfile and returns the
     SHA256 as the key.
+    
+    :param keyfile: The path to a key file or a file-like object.
     """
     if hasattr(keyfile, 'read'):
         buf = keyfile.read()

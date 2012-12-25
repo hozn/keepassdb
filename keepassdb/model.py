@@ -182,7 +182,11 @@ class Group(BaseModel):
         self.modified = util.now()
         
     def move(self, parent):
-        """calls self.db.move_group"""
+        """
+        Move this group to a new parent.
+        :param parent: The new parent group; if None will be root group.
+        :type parent: :class:`keepassdb.model.Group`
+        """
         return self.db.move_group(self, parent)
 
     def move_in_parent(self, index):
@@ -208,7 +212,7 @@ class Group(BaseModel):
         """
         return self.db.create_entry(group=self, **kwargs)
 
-    def to_dict(self, hierarchy=True, show_passwords=False):
+    def to_dict(self, hierarchy=True, hide_passwords=False):
         d = dict(id=self.id,
                  title=self.title,
                  icon=self.icon,
@@ -219,9 +223,9 @@ class Group(BaseModel):
                  expires=self.expires if self.expires != const.NEVER else None,
                  flags=self.flags
                  )
-        d['entries'] = [e.to_dict(show_passwords=show_passwords) for e in self.entries]
+        d['entries'] = [e.to_dict(hide_passwords=hide_passwords) for e in self.entries]
         if hierarchy:
-            d['children'] = [g.to_dict(hierarchy=hierarchy, show_passwords=show_passwords) for g in self.children]
+            d['children'] = [g.to_dict(hierarchy=hierarchy, hide_passwords=hide_passwords) for g in self.children]
             
         return d
     
@@ -269,7 +273,13 @@ class Entry(BaseModel):
             accessed = util.now()
         if expires is None:
             expires = const.NEVER
-
+        
+        # Some casting to strings here, since this is what we'll get when we read
+        # these entries from the database.  (Probably needs to be more comprehensive.)
+        if title is None: title = u''
+        if notes is None: notes = u''
+        if binary_desc is None: binary_desc = u''
+        
         self.uuid = uuid
         self.group_id = group_id
         self.group = group
@@ -339,7 +349,7 @@ class Entry(BaseModel):
         
     @property
     def notes(self):
-        return self._title
+        return self._notes
     
     @notes.setter
     def notes(self, value):
@@ -354,7 +364,7 @@ class Entry(BaseModel):
     def expires(self, value):
         self._expires = value
         self.modified = util.now()
-
+        
     def move(self, group):
         """
         This method moves the entry to another group.
@@ -373,14 +383,14 @@ class Entry(BaseModel):
         """
         return self.group.db.remove_entry(self)
     
-    def to_dict(self, show_passwords=False):
+    def to_dict(self, hide_passwords=False):
         d = dict(uuid=self.uuid,
                  group_id=self.group_id,
                  icon=self.icon,
                  title=self.title,
                  url=self.url,
                  username=self.username,
-                 password=self.password if show_passwords else '********',
+                 password=self.password if not hide_passwords else '********',
                  notes=self.notes,
                  created=self.created if self.created != const.NEVER else None,  
                  modified=self.modified if self.modified != const.NEVER else None,

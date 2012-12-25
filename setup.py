@@ -48,9 +48,8 @@ setup(
     description = "Python library for reading and writing KeePass 1.x databases.",
     long_description = long_description,
     packages = find_packages(exclude=['test']),
-    install_requires=['pycrypto>=2.6,<3.0dev',
-                      'lockfile>=0.9,<1.0dev'],
-    setup_requires = ['nose'],
+    install_requires=['pycrypto>=2.6,<3.0dev'],
+    test_requires = ['nose', 'unittest2', 'freezegun'],
     test_suite = 'nose.collector',
     classifiers=[
        'Development Status :: 3 - Alpha',

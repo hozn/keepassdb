@@ -37,11 +37,11 @@ marshall_none = Marshall(decode=lambda buf: None,
 marshall_pass = Marshall(decode=lambda buf: buf,
                          encode=lambda val: val)
 
-marshall_ascii = Marshall(decode=lambda buf:hexlify(buf).replace('\0', ''),
-                          encode=lambda val:unhexlify(val) + '\0')
+marshall_ascii = Marshall(decode=lambda buf:hexlify(buf),
+                          encode=lambda val:unhexlify(val))
 
-marshall_string = Marshall(decode=lambda buf: buf.replace('\0', ''),
-                           encode=lambda val: val + '\0')
+marshall_string = Marshall(decode=lambda buf: buf.replace('\0', '').decode('utf-8'),
+                           encode=lambda val: val.encode('utf-8') + '\0')
 
 marshall_short = Marshall(decode=lambda buf: struct.unpack("<H", buf)[0],
                           encode=lambda val: struct.pack("<H", val))
@@ -153,6 +153,8 @@ class StructBase(object):
             if name is None:
                 break
             try:
+                if name == 'uuid':
+                    self.log.debug("Decoding UUID.  Len = {}, raw bytes = {!r}".format(siz, encoded))
                 value = marshall.decode(encoded)
                 self.log.debug("Decoded field [{0}] to value {1!r}".format(name, value))
             except struct.error, msg:
@@ -193,7 +195,12 @@ class StructBase(object):
             packed = struct.pack('<H', typ)
             packed += struct.pack('<I', size)
             if encoded is not None:
+                if isinstance(encoded, bytearray):
+                    encoded = str(encoded)
+                elif isinstance(encoded, unicode):
+                    encoded = encoded.encode('utf-8')
                 packed += struct.pack('<%ds' % size, encoded)
+                
             buf += packed
             
         return buf
@@ -450,6 +457,8 @@ class HeaderStruct(object):
     def decode(self, buf):
         'Fill self from binary string.'
         index = 0
+        if self.length > len(buf):
+            raise exc.ParseError("Insufficient data for reading header.") 
         for (name, nbytes, typecode) in self.format:
             string = buf[index:index + nbytes]
             index += nbytes
