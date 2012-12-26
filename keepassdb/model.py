@@ -22,7 +22,7 @@ import logging
 import base64
 
 from keepassdb import const, util
-from keepassdb.structures import GroupStruct, EntryStruct
+from keepassdb.structs import GroupStruct, EntryStruct
 
 __authors__ = ["Karsten-Kai König <kkoenig@posteo.de>", "Hans Lellelid <hans@xmpl.org>"]
 __copyright__ = "Copyright (C) 2012 Karsten-Kai König <kkoenig@posteo.de>"
@@ -181,17 +181,27 @@ class Group(BaseModel):
         self._expires = value
         self.modified = util.now()
         
-    def move(self, parent):
+    def move(self, parent, index=None):
         """
         Move this group to a new parent.
+        
         :param parent: The new parent group; if None will be root group.
         :type parent: :class:`keepassdb.model.Group`
+        :param index: The 0-based index within the parent (defaults to appending
+                      group to end of parent's children).
+        :type index: int
         """
-        return self.db.move_group(self, parent)
+        return self.db.move_group(self, parent, index=index)
 
-    def move_in_parent(self, index):
-        """calls move_group_in_parent"""
-        return self.db.move_group_in_parent(self, index)
+    def change_index(self, index):
+        """
+        Move the group to the new 0-based index within the same parent.
+        
+        :param index: The 0-based index for the new position within parent group.  Note that this
+                    index will be evaluated *after* the group has been removed from the list.
+        :type index: int
+        """
+        return self.db.change_group_index(self, index)
 
     def remove(self):
         """This method calls remove_group of the holding db"""
@@ -251,6 +261,7 @@ class Entry(BaseModel):
     """ 
     
     struct_type = EntryStruct
+    _group = None
 
     def __init__(self, uuid = None, group_id = None, group = None,
                  icon = None, title = None, url = None, username = None,
@@ -283,6 +294,8 @@ class Entry(BaseModel):
         self.uuid = uuid
         self.group_id = group_id
         self.group = group
+        
+        # Property attributes
         self._icon = icon
         self._title = title
         self._url = url
@@ -301,6 +314,16 @@ class Entry(BaseModel):
         return '<Entry title={0} username={1}>'.format(self.title,
                                                        self.username)
 
+    @property
+    def group(self):
+        return self._group
+    
+    @group.setter
+    def group(self, value):
+        self._group = value
+        if value is not None:
+            self.group_id = value.id
+        
     @property
     def title(self):
         return self._title
@@ -365,13 +388,13 @@ class Entry(BaseModel):
         self._expires = value
         self.modified = util.now()
         
-    def move(self, group):
+    def move(self, group, index=None):
         """
         This method moves the entry to another group.
         """
-        return self.group.db.move_entry(self, group)
+        return self.group.db.move_entry(self, group, index=index)
 
-    def move_in_group(self, index):
+    def change_index(self, index):
         """
         This method moves the entry to another position in the group.
         """

@@ -17,4 +17,13 @@ class TestBase(unittest2.TestCase):
         for g in db.groups:
             if g.title == name:
                 return g
-        return None # Just to be explicit
+        else:
+            raise Exception("Group not found: {0}".format(name))
+    
+    def get_entry_by_name(self, db, name):
+        """ Return first entry in database that matches specified name. """
+        for e in db.entries:
+            if e.title == name:
+                return e
+        else:
+            raise Exception("Entry not found: {0}".format(name))

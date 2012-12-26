@@ -66,7 +66,7 @@ class DatabaseTest(TestBase):
         top_groups = [g.title for g in db.root.children]
         self.assertEquals(['Internet', 'eMail', 'Backup'], top_groups)
         self.assertEquals(['A1', 'B1', 'C1'], [g.title for g in db.root.children[0].children])
-        self.assertEquals(set(['AEntry1', 'AEntry2']), set([e.title for e in db.root.children[0].children[0].entries]))
+        self.assertEquals(set(['AEntry1', 'AEntry2', 'AEntry3']), set([e.title for e in db.root.children[0].children[0].entries]))
         self.assertEquals(['A2'], [g.title for g in db.root.children[0].children[0].children])
         
         # Good enough for now ;)

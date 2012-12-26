@@ -26,7 +26,7 @@ from Crypto.Random import get_random_bytes
 
 from keepassdb import exc, util, const
 from keepassdb.model import Group, Entry, RootGroup
-from keepassdb.structures import HeaderStruct, GroupStruct, EntryStruct
+from keepassdb.structs import HeaderStruct, GroupStruct, EntryStruct
 
 class Database(object):
     """
@@ -339,12 +339,21 @@ class Database(object):
         self.groups.remove(group)
         
             
-    def move_group(self, group, parent):
+    def move_group(self, group, parent, index=None):
         """
         Append group to a new parent.
+        
+        :param group
+        :type group: :class:`keepassdb.model.Group`
+        :param parent
+        :type parent: :class:`keepassdb.model.Group`
+        :param index: The 0-based index within the parent (defaults to appending
+                      group to end of parent's children).
+        :type index: int
         """
         if not isinstance(group, Group):
             raise TypeError("group param must be of type Group")
+        
         if parent is not None and not isinstance(parent, Group):
             raise TypeError("parent param must be of type Group")
             
@@ -355,73 +364,40 @@ class Database(object):
             parent = self.root
             
         if group not in self.groups:
-            raise ValueError("Group doesn't exist / is not bound to this database.")
-    
-        self.groups.remove(group)
-        group.parent.children.remove(group)
-        group.parent = parent
-        if parent.children:
-            if parent.children[-1] is self.groups[-1]:
-                self.groups.append(group)
-            else:
-                new_index = self.groups.index(parent.children[-1]) + 1
-                self.groups.insert(new_index, group)
-        else:
-            new_index = self.groups.index(parent) + 1
-            self.groups.insert(new_index, group)
-        parent.children.append(group)
-        if parent is self.root:
-            group.level = 0
-        else:
-            group.level = parent.level + 1
-        if group.children:
-            self._move_group_helper();
-            
-        group.modified = util.now()            
-
-    def move_group_in_parent(self, group, index):
-        """
-        Move group to another position in group's parent.
+            raise exc.UnboundModelError("Group doesn't exist / is not bound to this database.")
         
-        :param group: The Group object to move.
-        :type group: :class:`keepassdb.model.Group`
-        :param index: The 0-based index for the new position within parent group.
-        :type index: int
-        """
-        if not isinstance(group, Group):
-            raise TypeError("group param must be of type Group")
-            
-        if group not in self.groups:
-            raise ValueError("Group doesn't exist / is not bound to this database.")
-            
-        if index < 0 or index >= len(group.parent.children):
-            raise IndexError("index must be a valid index if group.parent.groups")
-    
-        group_at_index = group.parent.children[index]
-        pos_in_parent = group.parent.children.index(group) 
-        pos_in_groups = self.groups.index(group)
-        pos_in_groups2 = self.groups.index(group_at_index)
-
-        group.parent.children[index] = group
-        group.parent.children[pos_in_parent] = group_at_index
-        self.groups[pos_in_groups2] = group
-        self.groups[pos_in_groups] = group_at_index
-        if group.children:
-            self._move_group_helper(group);
-        if group_at_index.children:
-            self._move_group_helper(group_at_index);
+        if parent not in self.groups:
+            raise exc.UnboundModelError("Parent group doesn't exist / is not bound to this database.")
+        
+        curr_parent = group.parent
+        curr_parent.children.remove(group)
+        
+        if index is None:
+            parent.children.append(group)
+            self.log.debug("Moving {0!r} to child of {1!r}, (appending)".format(group, parent))
+        else:
+            parent.children.insert(index, group)
+            self.log.debug("Moving {0!r} to child of {1!r}, (at position {2!r})".format(group, parent, index))
+        
+        group.parent = parent
         group.modified = util.now()
-
-    def _move_group_helper(self, group):
+        
+        self._rebuild_groups()
+                    
+        
+    def _rebuild_groups(self):
         """
-        A helper to recursively move the chidren of a group.
+        Recreates the groups master list based on the groups hierarchy (order matters here,
+        since the parser uses order to determine lineage).
         """
-        for i in group.children:
-            self.groups.remove(i)
-            i.level = group.level + 1
-            self.group.insert(self.groups.index(group) + 1, i)
-            if i.children:
-                self._move_group_helper(i);
+        self.groups = []
+        
+        def collapse_group(group):
+            for subgroup in group.children:
+                self.groups.append(subgroup)
+                collapse_group(subgroup)
+                
+        collapse_group(self.root)
 
     def create_entry(self, group, **kwargs):
         """
@@ -475,7 +451,7 @@ class Database(object):
         entry.group.entries.remove(entry)
         self.entries.remove(entry)
 
-    def move_entry(self, entry, group):
+    def move_entry(self, entry, group, index=None):
         """
         Move an entry to another group.
         
@@ -484,6 +460,10 @@ class Database(object):
         
         :param group: The new parent Group object for the entry.
         :type group: :class:`keepassdb.model.Group`
+        
+        :param index: The 0-based index within the parent (defaults to appending
+                      group to end of parent's children).
+        :type index: int
         """
         if not isinstance(entry, Entry):
             raise TypeError("entry param must be of type Entry")
@@ -491,42 +471,40 @@ class Database(object):
             raise TypeError("group param must be of type Group")
         
         if entry not in self.entries:
-            raise ValueError("Invalid entry (or not bound to this database): {0!r}".format(entry))
+            raise exc.UnboundModelError("Invalid entry (or not bound to this database): {0!r}".format(entry))
         if group not in self.groups:
-            raise ValueError("Invalid group (or not bound to this database): {0!r}".format(group))
+            raise exc.UnboundModelError("Invalid group (or not bound to this database): {0!r}".format(group))
         
-        entry.group.entries.remove(entry)
-        group.entries.append(entry)
-        entry.group_id = group.id
+        curr_group = entry.group
         
-    def move_entry_in_group(self, entry, index):
-        """
-        Move entry to specified position in its current group.
-
-        :param entry: The Entry object to move.
-        :type entry: :class:`keepassdb.model.Entry`
-        :param index: The 0-based index for the new position within group.
-        :type index: int
-        """
-        if not isinstance(entry, Entry):
-            raise TypeError("Invalid type for entry: {0!r}".format(entry))
-        
-        if index < 0 or index >= len(entry.group.entries):
-            raise IndexError("Index is not within allowable range.")
+        curr_group.entries.remove(entry)
+        if index is None:
+            group.entries.append(entry)
+            self.log.debug("Moving {0!r} to child of {1!r}, (appending)".format(entry, group))
+        else:
+            group.entries.insert(index, entry)
+            self.log.debug("Moving {0!r} to child of {1!r}, (at position {2})".format(entry, group, index))
             
-        if entry not in self.entries:
-            raise ValueError("Entry does not exist (or not bound to this db instance).")
+        entry.group = group
         
-        pos_in_group = entry.group.entries.index(entry)
-        pos_in_entries = self.entries.index(entry)
-        entry_at_index = entry.group.entries[index]
-        pos_in_entries2 = self.entries.index(entry_at_index)
-
-        entry.group.entries[index] = entry
-        entry.group.entries[pos_in_group] = entry_at_index
-        self.entries[pos_in_entries2] = entry
-        self.entries[pos_in_entries] = entry_at_index
-
+        entry.modified = util.now()
+        
+        self._rebuild_entries()
+        
+    def _rebuild_entries(self):
+        """
+        Recreates the entries master list based on the groups hierarchy (order matters here,
+        since the parser uses order to determine lineage).
+        """
+        self.entries = []
+        def collapse_entries(group):
+            for entry in group.entries:
+                self.entries.append(entry)
+            for subgroup in group.children:
+                collapse_entries(subgroup)
+                
+        collapse_entries(self.root)
+        
     def _bind_model(self):
         """This method creates a group tree"""
 
@@ -562,6 +540,7 @@ class Database(object):
         current_parent = self.root
         prev_group = None
         for g in self.groups:
+            g.db = self # Bind database to group objects
             if prev_group is not None: # first iteration is exceptional
                 if g.level > prev_group.level: # Always true for iteration 1 since root has level of -1
                     # Dropping down a level; the previous group is the parent
@@ -578,10 +557,6 @@ class Database(object):
             current_parent.children.append(g)
             
             prev_group = g
-        
-        # Bind database to group objects
-        for group in self.groups:
-            group.db = self
             
         # Bind group objects to entries
         for entry in self.entries:
@@ -589,10 +564,16 @@ class Database(object):
                 if entry.group_id == group.id:
                     group.entries.append(entry)
                     entry.group = group
+                    break
+            else:
+                # KeePassX adds these to the first group (i.e. root.children[0])
+                raise NotImplementedError("Orphaned entries not (yet) supported.")
 
     def close(self):
         """
         Closes the database.
+        
+        (A placeholder method to be overridden by subclasses.)
         """
 
     def to_dict(self, hierarchy=True, hide_passwords=False):

@@ -58,3 +58,8 @@ class ParseError(KPError):
     Exception raised when unable to parse various database structures. 
     """
     
+class UnboundModelError(KPError):
+    """
+    Exception raised when referencing a group or entity that hasn't been bound to the database. 
+    """
+    
