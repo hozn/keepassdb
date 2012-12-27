@@ -103,6 +103,5 @@ class DatabaseTest(TestBase):
         
         self.assertEquals(ser, db.to_dict(hierarchy=True, hide_passwords=True))
         
-        
 class LockingDabaseTest(TestBase):
     pass

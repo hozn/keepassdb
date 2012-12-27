@@ -5,6 +5,7 @@ This is a very elegant parsing paradigm.
 
 TODO: Merge these with model objects -- or otherwise refactor.
 """
+from _pyio import __metaclass__
 
 __authors__ = ["Brett Viren <brett.viren@gmail.com>","Hans Lellelid <hans@xmpl.org>"]
 __license__ = """
@@ -23,33 +24,85 @@ keepassdb.  If not, see <http://www.gnu.org/licenses/>.
 import abc
 import struct
 import logging
-import collections
 from datetime import datetime, date
 from binascii import hexlify, unhexlify
 
 from keepassdb import exc, const
 
-Marshall = collections.namedtuple('Marshall', ['decode', 'encode'])
+class Marshall(object):
+    __metaclass__ = abc.ABCMeta
+    
+    @abc.abstractmethod  
+    def encode(self, val):
+        """
+        Encode the specified value.
+        :rtype: str 
+        """
+    
+    @abc.abstractmethod
+    def decode(self, buf):
+        """
+        Decode value from buffer.
+        :type buf: str
+        """
 
-marshall_none = Marshall(decode=lambda buf: None,
-                         encode=lambda val: None)
+class MarshallNone(Marshall):
+    """ A None-returning Marshall object. """
+    def encode(self, val):
+        return None
+    
+    def decode(self, buf):
+        return None
 
-marshall_pass = Marshall(decode=lambda buf: buf,
-                         encode=lambda val: val)
+class MarshallPass(Marshall):
+    """ Pass-through marshall implementation. """
+    def encode(self, val):
+        return val
+    
+    def decode(self, buf):
+        return buf
 
-marshall_ascii = Marshall(decode=lambda buf:hexlify(buf),
-                          encode=lambda val:unhexlify(val))
+class MarshallString(Marshall):
+    """ Encode/decode unicode or string values. """
+    def encode(self, val):
+        """
+        :type val: unicode or str
+        """
+        if val is None:
+            val = u''
+        return val.encode('utf-8') + '\0'
+    
+    def decode(self, buf):
+        """
+        :rtype: unicode
+        """
+        return buf.replace('\0', '').decode('utf-8')
 
-marshall_string = Marshall(decode=lambda buf: buf.replace('\0', '').decode('utf-8'),
-                           encode=lambda val: val.encode('utf-8') + '\0')
-
-marshall_short = Marshall(decode=lambda buf: struct.unpack("<H", buf)[0],
-                          encode=lambda val: struct.pack("<H", val))
-
-marshall_int = Marshall(decode=lambda buf:struct.unpack("<L", buf)[0],
-                        encode=lambda val:struct.pack("<L", val))
-
-class DateMarshall(object):
+class MarshallAscii(Marshall):
+    """ Encode/decode short int values. """
+    def encode(self, val):
+        return unhexlify(val)
+    
+    def decode(self, buf):
+        return hexlify(buf)
+    
+class MarshallShort(Marshall):
+    """ Encode/decode short int values. """
+    def encode(self, val):
+        return struct.pack("<H", val)
+    
+    def decode(self, buf):
+        return struct.unpack("<H", buf)[0]
+    
+class MarshallInt(Marshall):
+    """ Encode/decode int/long values. """
+    def encode(self, val):
+        return struct.pack("<L", val)
+    
+    def decode(self, buf):
+        return struct.unpack("<L", buf)[0]
+         
+class MarshallDate(Marshall):
 
     def decode(self, buf):
         date_field = struct.unpack('<5B', buf)
@@ -80,8 +133,7 @@ class DateMarshall(object):
 
         return struct.pack('<5B', dw1, dw2, dw3, dw4, dw5) 
     
-marshall_date = DateMarshall()
-
+    
 class StructBase(object):
     'Base class for info type blocks'
     __metaclass__ = abc.ABCMeta
@@ -153,8 +205,6 @@ class StructBase(object):
             if name is None:
                 break
             try:
-                if name == 'uuid':
-                    self.log.debug("Decoding UUID.  Len = {}, raw bytes = {!r}".format(siz, encoded))
                 value = marshall.decode(encoded)
                 self.log.debug("Decoded field [{0}] to value {1!r}".format(name, value))
             except struct.error, msg:
@@ -252,17 +302,17 @@ class GroupStruct(StructBase):
     flags = None
      
     format = {
-            0x0: ('_ignored', marshall_none),
-            0x1: ('id', marshall_int),
-            0x2: ('title', marshall_string),
-            0x3: ('created', marshall_date),
-            0x4: ('modified', marshall_date),
-            0x5: ('accessed', marshall_date),
-            0x6: ('expires', marshall_date),
-            0x7: ('icon', marshall_int),
-            0x8: ('level', marshall_short),
-            0x9: ('flags', marshall_int),
-            0xFFFF: (None, marshall_none),
+            0x0: ('_ignored', MarshallNone()),
+            0x1: ('id', MarshallInt()),
+            0x2: ('title', MarshallString()),
+            0x3: ('created', MarshallDate()),
+            0x4: ('modified', MarshallDate()),
+            0x5: ('accessed', MarshallDate()),
+            0x6: ('expires', MarshallDate()),
+            0x7: ('icon', MarshallInt()),
+            0x8: ('level', MarshallShort()),
+            0x9: ('flags', MarshallInt()),
+            0xFFFF: (None, None),
         }
     
     @property
@@ -315,22 +365,22 @@ class EntryStruct(StructBase):
     binary = None
     
     format = {
-            0x0: ('_ignored', marshall_none),
-            0x1: ('uuid', marshall_ascii),
-            0x2: ('group_id', marshall_int),
-            0x3: ('icon', marshall_int),
-            0x4: ('title', marshall_string),
-            0x5: ('url', marshall_string),
-            0x6: ('username', marshall_string),
-            0x7: ('password', marshall_string),
-            0x8: ('notes', marshall_string),
-            0x9: ('created', marshall_date),
-            0xa: ('modified', marshall_date),
-            0xb: ('accessed', marshall_date),
-            0xc: ('expires', marshall_date),
-            0xd: ('binary_desc', marshall_string),
-            0xe: ('binary', marshall_pass),
-            0xFFFF: (None, marshall_none),
+            0x0: ('_ignored', MarshallNone()),
+            0x1: ('uuid', MarshallAscii()),
+            0x2: ('group_id', MarshallInt()),
+            0x3: ('icon', MarshallInt()),
+            0x4: ('title', MarshallString()),
+            0x5: ('url', MarshallString()),
+            0x6: ('username', MarshallString()),
+            0x7: ('password', MarshallString()),
+            0x8: ('notes', MarshallString()),
+            0x9: ('created', MarshallDate()),
+            0xa: ('modified', MarshallDate()),
+            0xb: ('accessed', MarshallDate()),
+            0xc: ('expires', MarshallDate()),
+            0xd: ('binary_desc', MarshallString()),
+            0xe: ('binary', MarshallPass()),
+            0xFFFF: (None, None),
             }
 
     @property
