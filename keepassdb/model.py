@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-The keepass entity objects.
+The model consists of the Group and Entity classes that together make up the contents
+of the database.  These classes are directly related to their :mod:`keepassdb.structs`
+counterparts; however, they also track the hierarchy of the database, track modification
+times, and provide convenience methods to perform create and move operations.
 """ 
 
 __authors__ = ["Brett Viren <brett.viren@gmail.com>","Hans Lellelid <hans@xmpl.org>"]

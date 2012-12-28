@@ -1,8 +1,19 @@
 # -*- coding: utf-8 -*-
 """
-This module implements the access to KeePass 1.x-databases.
+The database classes provide the primary API for loading and saving KeePass 1.x databases,
+in addition to creating new groups and entries.
 """
 import binascii
+import logging
+import os
+import os.path
+import hashlib
+
+from Crypto.Random import get_random_bytes
+
+from keepassdb import exc, util, const
+from keepassdb.model import Group, Entry, RootGroup
+from keepassdb.structs import HeaderStruct, GroupStruct, EntryStruct
 
 __authors__ = ["Karsten-Kai König <kkoenig@posteo.de>", "Hans Lellelid <hans@xmpl.org>", "Brett Viren <brett.viren@gmail.com>"]
 __license__ = """
@@ -17,16 +28,6 @@ A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 keepassdb.  If not, see <http://www.gnu.org/licenses/>.
 """
-import logging
-import os
-import os.path
-import hashlib
-
-from Crypto.Random import get_random_bytes
-
-from keepassdb import exc, util, const
-from keepassdb.model import Group, Entry, RootGroup
-from keepassdb.structs import HeaderStruct, GroupStruct, EntryStruct
 
 class Database(object):
     """
@@ -107,8 +108,8 @@ class Database(object):
         """
         Create a default 'Internet' group on an empty database.
         
-        :return The new Internet group.
-        :rtype :class:`keepassdb.model.Group`
+        :returns: The new 'Internet' group.
+        :rtype: :class:`keepassdb.model.Group`
         """
         assert len(self.groups) == 0, "initialize_empty() should only be used with a new database."
         return self.create_group(u'Internet', icon=1)
@@ -343,9 +344,9 @@ class Database(object):
         """
         Append group to a new parent.
         
-        :param group
+        :param group: The group to move.
         :type group: :class:`keepassdb.model.Group`
-        :param parent
+        :param parent: The new parent for the group.
         :type parent: :class:`keepassdb.model.Group`
         :param index: The 0-based index within the parent (defaults to appending
                       group to end of parent's children).
@@ -571,9 +572,7 @@ class Database(object):
 
     def close(self):
         """
-        Closes the database.
-        
-        (A placeholder method to be overridden by subclasses.)
+        Closes the database, performs any necessary cleanup functions.
         """
 
     def to_dict(self, hierarchy=True, hide_passwords=False):
@@ -636,8 +635,10 @@ class LockingDatabase(Database):
     def acquire_lock(self, force=False):
         """
         Takes out a lock (creates a <dbname>.lock file) for the database.
+        
         :param force: Whether to force taking "ownership" of the lock file.
-        :raise keepassdb.exc.DatabaseAlreadyLocked: If the database is already locked (and force not set to True)
+        :type force: bool
+        :raises: :class:`keepassdb.exc.DatabaseAlreadyLocked` - If the database is already locked (and force not set to True).
         """
         if self.readonly:
             raise exc.ReadOnlyDatabase()
@@ -653,6 +654,7 @@ class LockingDatabase(Database):
         Releases the lock  (deletes the <dbname>.lock file) if it was acquired by this class or force is set to True.
         
         :param force: Whether to force releasing the lock (e.g. if it was not acquired during this session).
+        :type force: bool
         """
         if self.readonly:
             raise exc.ReadOnlyDatabase()

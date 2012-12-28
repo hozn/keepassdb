@@ -12,7 +12,7 @@ except ImportError:
 
 version = '0.1'
 
-news = os.path.join(os.path.dirname(__file__), 'docs', 'news.txt')
+news = os.path.join(os.path.dirname(__file__), 'docs', 'news.rst')
 news = open(news).read()
 parts = re.split(r'([0-9\.]+)\s*\n\r?-+\n\r?', news)
 found_news = ''
@@ -49,7 +49,7 @@ setup(
     long_description = long_description,
     packages = find_packages(exclude=['test']),
     install_requires=['pycrypto>=2.6,<3.0dev'],
-    test_requires = ['nose', 'unittest2', 'freezegun'],
+    tests_require = ['nose', 'unittest2', 'freezegun'],
     test_suite = 'nose.collector',
     classifiers=[
        'Development Status :: 3 - Alpha',

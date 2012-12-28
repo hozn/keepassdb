@@ -1,12 +1,9 @@
 """
-It is planned to incorporate this code (or similar) from https://github.com/wummel/python-keepass
+Support for reading and writing the structures that comprise the keepass database.
 
-This is a very elegant parsing paradigm.
-
-TODO: Merge these with model objects -- or otherwise refactor.
+This module is derived from the elegant parsing improvements Brett Viren <brett.viren@gmail.com>
+introduced in the [python-keepass](https://github.com/brettviren/python-keepass) project.
 """
-from _pyio import __metaclass__
-
 __authors__ = ["Brett Viren <brett.viren@gmail.com>","Hans Lellelid <hans@xmpl.org>"]
 __license__ = """
 keepassdb is free software: you can redistribute it and/or modify it under the terms
@@ -24,7 +21,7 @@ keepassdb.  If not, see <http://www.gnu.org/licenses/>.
 import abc
 import struct
 import logging
-from datetime import datetime, date
+from datetime import datetime
 from binascii import hexlify, unhexlify
 
 from keepassdb import exc, const
@@ -265,30 +262,35 @@ class StructBase(object):
 
     
 class GroupStruct(StructBase):
-    '''
-    One group: [FIELDTYPE(FT)][FIELDSIZE(FS)][FIELDDATA(FD)]
+    """
+    Structure representing a single group.
+    
+    Basic structure: [FIELDTYPE(FT)][FIELDSIZE(FS)][FIELDDATA(FD)]
            [FT+FS+(FD)][FT+FS+(FD)][FT+FS+(FD)][FT+FS+(FD)][FT+FS+(FD)]...
     
-    [ 2 bytes] FIELDTYPE
-    [ 4 bytes] FIELDSIZE, size of FIELDDATA in bytes
-    [ n bytes] FIELDDATA, n = FIELDSIZE
+    General structure:
+    
+    - [ 2 bytes] FIELDTYPE
+    - [ 4 bytes] FIELDSIZE, size of FIELDDATA in bytes
+    - [ n bytes] FIELDDATA, n = FIELDSIZE
     
     Notes:
-    - Strings are stored in UTF-8 encoded form and are null-terminated.
-    - FIELDTYPE can be one of the following identifiers:
-      * 0000: Invalid or comment block, block is ignored
-      * 0001: Group ID, FIELDSIZE must be 4 bytes
-              It can be any 32-bit value except 0 and 0xFFFFFFFF
-      * 0002: Group name, FIELDDATA is an UTF-8 encoded string
-      * 0003: Creation time, FIELDSIZE = 5, FIELDDATA = packed date/time
-      * 0004: Last modification time, FIELDSIZE = 5, FIELDDATA = packed date/time
-      * 0005: Last access time, FIELDSIZE = 5, FIELDDATA = packed date/time
-      * 0006: Expiration time, FIELDSIZE = 5, FIELDDATA = packed date/time
-      * 0007: Image ID, FIELDSIZE must be 4 bytes
-      * 0008: Level, FIELDSIZE = 2
-      * 0009: Flags, 32-bit value, FIELDSIZE = 4
-      * FFFF: Group entry terminator, FIELDSIZE must be 0
-      '''
+    
+    * Strings are stored in UTF-8 encoded form and are null-terminated.
+    * FIELDTYPE can be one of the following identifiers:
+     * 0000: Invalid or comment block, block is ignored
+     * 0001: Group ID, FIELDSIZE must be 4 bytes
+             It can be any 32-bit value except 0 and 0xFFFFFFFF
+     * 0002: Group name, FIELDDATA is an UTF-8 encoded string
+     * 0003: Creation time, FIELDSIZE = 5, FIELDDATA = packed date/time
+     * 0004: Last modification time, FIELDSIZE = 5, FIELDDATA = packed date/time
+     * 0005: Last access time, FIELDSIZE = 5, FIELDDATA = packed date/time
+     * 0006: Expiration time, FIELDSIZE = 5, FIELDDATA = packed date/time
+     * 0007: Image ID, FIELDSIZE must be 4 bytes
+     * 0008: Level, FIELDSIZE = 2
+     * 0009: Flags, 32-bit value, FIELDSIZE = 4
+     * FFFF: Group entry terminator, FIELDSIZE must be 0
+    """
     
     # Struct attributes
     id = None
@@ -324,30 +326,33 @@ class EntryStruct(StructBase):
     One entry: [FIELDTYPE(FT)][FIELDSIZE(FS)][FIELDDATA(FD)]
            [FT+FS+(FD)][FT+FS+(FD)][FT+FS+(FD)][FT+FS+(FD)][FT+FS+(FD)]...
 
-    [ 2 bytes] FIELDTYPE
-    [ 4 bytes] FIELDSIZE, size of FIELDDATA in bytes
-    [ n bytes] FIELDDATA, n = FIELDSIZE
+    Basic structure:
+    
+    * [ 2 bytes] FIELDTYPE
+    * [ 4 bytes] FIELDSIZE, size of FIELDDATA in bytes
+    * [ n bytes] FIELDDATA, n = FIELDSIZE
     
     Notes:
-    - Strings are stored in UTF-8 encoded form and are null-terminated.
-    - FIELDTYPE can be one of the following identifiers:
-      * 0000: Invalid or comment block, block is ignored
-      * 0001: UUID, uniquely identifying an entry, FIELDSIZE must be 16
-      * 0002: Group ID, identifying the group of the entry, FIELDSIZE = 4
-              It can be any 32-bit value except 0 and 0xFFFFFFFF
-      * 0003: Image ID, identifying the image/icon of the entry, FIELDSIZE = 4
-      * 0004: Title of the entry, FIELDDATA is an UTF-8 encoded string
-      * 0005: URL string, FIELDDATA is an UTF-8 encoded string
-      * 0006: UserName string, FIELDDATA is an UTF-8 encoded string
-      * 0007: Password string, FIELDDATA is an UTF-8 encoded string
-      * 0008: Notes string, FIELDDATA is an UTF-8 encoded string
-      * 0009: Creation time, FIELDSIZE = 5, FIELDDATA = packed date/time
-      * 000A: Last modification time, FIELDSIZE = 5, FIELDDATA = packed date/time
-      * 000B: Last access time, FIELDSIZE = 5, FIELDDATA = packed date/time
-      * 000C: Expiration time, FIELDSIZE = 5, FIELDDATA = packed date/time
-      * 000D: Binary description UTF-8 encoded string
-      * 000E: Binary data
-      * FFFF: Entry terminator, FIELDSIZE must be 0
+    
+    * Strings are stored in UTF-8 encoded form and are null-terminated.
+    * FIELDTYPE can be one of the following identifiers:
+     * 0000: Invalid or comment block, block is ignored
+     * 0001: UUID, uniquely identifying an entry, FIELDSIZE must be 16
+     * 0002: Group ID, identifying the group of the entry, FIELDSIZE = 4
+             It can be any 32-bit value except 0 and 0xFFFFFFFF
+     * 0003: Image ID, identifying the image/icon of the entry, FIELDSIZE = 4
+     * 0004: Title of the entry, FIELDDATA is an UTF-8 encoded string
+     * 0005: URL string, FIELDDATA is an UTF-8 encoded string
+     * 0006: UserName string, FIELDDATA is an UTF-8 encoded string
+     * 0007: Password string, FIELDDATA is an UTF-8 encoded string
+     * 0008: Notes string, FIELDDATA is an UTF-8 encoded string
+     * 0009: Creation time, FIELDSIZE = 5, FIELDDATA = packed date/time
+     * 000A: Last modification time, FIELDSIZE = 5, FIELDDATA = packed date/time
+     * 000B: Last access time, FIELDSIZE = 5, FIELDDATA = packed date/time
+     * 000C: Expiration time, FIELDSIZE = 5, FIELDDATA = packed date/time
+     * 000D: Binary description UTF-8 encoded string
+     * 000E: Binary data
+     * FFFF: Entry terminator, FIELDSIZE must be 0
     '''
     uuid = None
     group_id = None
@@ -389,42 +394,42 @@ class EntryStruct(StructBase):
 
 
 class HeaderStruct(object):
-    '''
+    """
     The keepass file header.
     
     From the KeePass doc:
     
-    Database header: [HeaderStruct]
+    Database header:
     
-    [ 4 bytes] DWORD    dwSignature1  = 0x9AA2D903
-    [ 4 bytes] DWORD    dwSignature2  = 0xB54BFB65
-    [ 4 bytes] DWORD    dwFlags
-    [ 4 bytes] DWORD    dwVersion       { Ve.Ve.Mj.Mj:Mn.Mn.Bl.Bl }
-    [16 bytes] BYTE{16} aMasterSeed
-    [16 bytes] BYTE{16} aEncryptionIV
-    [ 4 bytes] DWORD    dwGroups        Number of groups in database
-    [ 4 bytes] DWORD    dwEntries       Number of entries in database
-    [32 bytes] BYTE{32} aContentsHash   SHA-256 hash value of the plain contents
-    [32 bytes] BYTE{32} aMasterSeed2    Used for the dwKeyEncRounds AES
-                                        master key transformations
-    [ 4 bytes] DWORD    dwKeyEncRounds  See above; number of transformations
+    * [ 4 bytes] DWORD    dwSignature1  = 0x9AA2D903
+    * [ 4 bytes] DWORD    dwSignature2  = 0xB54BFB65
+    * [ 4 bytes] DWORD    dwFlags
+    * [ 4 bytes] DWORD    dwVersion       { Ve.Ve.Mj.Mj:Mn.Mn.Bl.Bl }
+    * [16 bytes] BYTE{16} aMasterSeed
+    * [16 bytes] BYTE{16} aEncryptionIV
+    * [ 4 bytes] DWORD    dwGroups        Number of groups in database
+    * [ 4 bytes] DWORD    dwEntries       Number of entries in database
+    * [32 bytes] BYTE{32} aContentsHash   SHA-256 hash value of the plain contents
+    * [32 bytes] BYTE{32} aMasterSeed2    Used for the dwKeyEncRounds AES
+                                          master key transformations
+    * [ 4 bytes] DWORD    dwKeyEncRounds  See above; number of transformations
     
     Notes:
     
-    - dwFlags is a bitmap, which can include:
+    * dwFlags is a bitmap, which can include:
       * PWM_FLAG_SHA2     (1) for SHA-2.
       * PWM_FLAG_RIJNDAEL (2) for AES (Rijndael).
       * PWM_FLAG_ARCFOUR  (4) for ARC4.
       * PWM_FLAG_TWOFISH  (8) for Twofish.
-    - aMasterSeed is a salt that gets hashed with the transformed user master key
+    * aMasterSeed is a salt that gets hashed with the transformed user master key
       to form the final database data encryption/decryption key.
       * FinalKey = SHA-256(aMasterSeed, TransformedUserMasterKey)
-    - aEncryptionIV is the initialization vector used by AES/Twofish for
+    * aEncryptionIV is the initialization vector used by AES/Twofish for
       encrypting/decrypting the database data.
-    - aContentsHash: "plain contents" refers to the database file, minus the
+    * aContentsHash: "plain contents" refers to the database file, minus the
       database header, decrypted by FinalKey.
       * PlainContents = Decrypt_with_FinalKey(DatabaseFile - DatabaseHeader)
-    '''
+    """
     signature1 = None
     signature2 = None
     flags = None

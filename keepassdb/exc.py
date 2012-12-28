@@ -45,7 +45,7 @@ class UnsupportedDatabaseEncryption(KPError):
 
 class AuthenticationError(KPError):
     """
-    Exception raised when contents cannot be verified against signature.
+    Exception raised when (encrypted) contents cannot be verified against signature.
     """
     
 class IncorrectKey(KPError):
@@ -55,7 +55,7 @@ class IncorrectKey(KPError):
     
 class ParseError(KPError):
     """
-    Exception raised when unable to parse various database structures. 
+    Exception raised when unable to parse database structure. 
     """
     
 class UnboundModelError(KPError):
