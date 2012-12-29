@@ -10,7 +10,7 @@ except ImportError:
     use_setuptools()
     from setuptools import setup, find_packages
 
-version = '0.1'
+version = '0.1.0'
 
 news = os.path.join(os.path.dirname(__file__), 'docs', 'news.rst')
 news = open(news).read()
@@ -47,7 +47,7 @@ setup(
     license = "GPLv3",
     description = "Python library for reading and writing KeePass 1.x databases.",
     long_description = long_description,
-    packages = find_packages(exclude=['test']),
+    packages = find_packages(exclude=["*.tests", "*.tests.*", "tests.*", "tests"]),
     install_requires=['pycrypto>=2.6,<3.0dev'],
     tests_require = ['nose', 'unittest2', 'freezegun'],
     test_suite = 'nose.collector',

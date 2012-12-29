@@ -5,7 +5,4 @@ Changes
 
 0.1.0
 -----
-* Original fork of kppy project.
-* Added a changelog ;)
-* Refactored into several modules, added documentation.
-* New factory methods for loading existing or new databases.
+* First release of new codebase derived in large part from kppy and python-keepass projects.
