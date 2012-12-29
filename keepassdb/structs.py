@@ -2,7 +2,7 @@
 Support for reading and writing the structures that comprise the keepass database.
 
 This module is derived from the elegant parsing improvements Brett Viren <brett.viren@gmail.com>
-introduced in the [python-keepass](https://github.com/brettviren/python-keepass) project.
+introduced in the `python-keepass <https://github.com/brettviren/python-keepass>`_ project.
 """
 __authors__ = ["Brett Viren <brett.viren@gmail.com>","Hans Lellelid <hans@xmpl.org>"]
 __license__ = """
@@ -27,24 +27,28 @@ from binascii import hexlify, unhexlify
 from keepassdb import exc, const
 
 class Marshall(object):
+    """ Abstract base class for the marshall implementations. """
     __metaclass__ = abc.ABCMeta
     
     @abc.abstractmethod  
     def encode(self, val):
         """
-        Encode the specified value.
+        Encode the specified value as the binary string representation needed for the database.
+        
         :rtype: str 
         """
     
     @abc.abstractmethod
     def decode(self, buf):
         """
-        Decode value from buffer.
+        Decode value from database's binary string representation to something that will be
+        useful for library consumers.
+        
         :type buf: str
         """
 
 class MarshallNone(Marshall):
-    """ A None-returning Marshall object. """
+    """ A None-returning dummy marshaller. """
     def encode(self, val):
         return None
     
@@ -52,7 +56,7 @@ class MarshallNone(Marshall):
         return None
 
 class MarshallPass(Marshall):
-    """ Pass-through marshall implementation. """
+    """ Pass-through marshall implemenatation (e.g. for binary data). """
     def encode(self, val):
         return val
     
@@ -63,7 +67,11 @@ class MarshallString(Marshall):
     """ Encode/decode unicode or string values. """
     def encode(self, val):
         """
-        :type val: unicode or str
+        Encode specified unicode value as UTF-8 string with null-byte termination.
+         
+        :param val: The unicode (or str) input value. 
+        :type val: unicode
+        :rtype: str
         """
         if val is None:
             val = u''
@@ -71,16 +79,43 @@ class MarshallString(Marshall):
     
     def decode(self, buf):
         """
+        Decode buffer (UTF-8 bytes) to unicode string and remove null termination byte.
+        
+        :param buf: The bytes.
+        :type buf: str
         :rtype: unicode
         """
-        return buf.replace('\0', '').decode('utf-8')
+        return buf.rstrip('\0').decode('utf-8')
 
+def ascii_de():
+    from binascii import b2a_hex, a2b_hex
+    return (lambda buf:b2a_hex(buf).replace('\0',''), 
+            lambda val:a2b_hex(val)+'\0')
+    
 class MarshallAscii(Marshall):
-    """ Encode/decode short int values. """
+    """
+    Encode/decode values by converting to hex notation.
+    """
     def encode(self, val):
+        """
+        Encode the specified value by hex *decoding* the input string.
+        
+        :param val: The hex-encoded input string.
+        :type val: str
+        :returns: unhexlified / base-16-decoded byte value. 
+        :rtype: str
+        """
         return unhexlify(val)
     
     def decode(self, buf):
+        """
+        Decode the specified value by hex *encoding* the input string.
+        
+        :param buf: The the byte value to encode.
+        :type buf: str
+        :returns: hexlified / base-16-encoded value.
+        :rtype: str  
+        """
         return hexlify(buf)
     
 class MarshallShort(Marshall):
@@ -100,8 +135,17 @@ class MarshallInt(Marshall):
         return struct.unpack("<L", buf)[0]
          
 class MarshallDate(Marshall):
-
+    """
+    Marshall the date format needed for keepass db to/from python datetime objects.
+    """
+    
     def decode(self, buf):
+        """
+        Decodes the date field into a python datetime object. 
+        
+        :returns: The decoded datetime object.
+        :rtype: :class:`datetime.datetime`
+        """
         date_field = struct.unpack('<5B', buf)
         dw1 = date_field[0]
         dw2 = date_field[1]
@@ -118,6 +162,14 @@ class MarshallDate(Marshall):
         return datetime(y, mon, d, h, min_, s)
     
     def encode(self, val):
+        """
+        Encode the python datetime value into the bytes needed for database format. 
+        
+        :param val: The datetime object.
+        :type val: :class:`datetime.datetime`
+        :returns: Bytes for data. 
+        :rtype: str
+        """
         # Just copied from original KeePassX source
         y, mon, d, h, min_, s = val.timetuple()[:6]
 
@@ -132,7 +184,9 @@ class MarshallDate(Marshall):
     
     
 class StructBase(object):
-    'Base class for info type blocks'
+    """
+    Abstract base class for the struct representations.
+    """
     __metaclass__ = abc.ABCMeta
     
     order = None
@@ -180,9 +234,11 @@ class StructBase(object):
     
     def decode(self, buf):
         """
-        Set object attributes from buffer.
+        Set object attributes from binary string representation.
         
-        :raise: keepassdb.exc.ParseError: If errors encountered parsing struct.
+        :param buf: The binary string representation of this object in database.
+        :type buf: str
+        :raises: :class:`keepassdb.exc.ParseError` - If errors encountered parsing struct.
         """
         index = 0
         while True:
@@ -475,7 +531,6 @@ class HeaderStruct(object):
     )
 
     def __init__(self, buf=None):
-        'Create a header, read self from binary string if given'
         if buf:
             self.decode(buf)
 
@@ -501,7 +556,12 @@ class HeaderStruct(object):
         return 'Unknown'
 
     def encode(self):
-        'Provide binary string representation'
+        """
+        Returns binary string representation of this struct.
+        
+        :returns: Structure encoded as binary string for keepass database.
+        :rtype: str
+        """
         ret = ""
         for name, bytes, typecode in self.format:
             value = getattr(self, name)
@@ -510,7 +570,12 @@ class HeaderStruct(object):
         return ret
 
     def decode(self, buf):
-        'Fill self from binary string.'
+        """
+        Set object attributes from binary string buffer.
+        
+        :param buf: The binary string representation of this struct from database.
+        :type buf: str 
+        """
         index = 0
         if self.length > len(buf):
             raise exc.ParseError("Insufficient data for reading header.") 

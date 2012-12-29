@@ -31,17 +31,21 @@ keepassdb.  If not, see <http://www.gnu.org/licenses/>.
 
 class Database(object):
     """
-    This class represents the KeePass database.
+    This class represents the KeePass 1.x database.
     
     :ivar root: The group-like virtual root object (not actually part of database).
-    :type root: :class:`keepassdb.model.RootGroup`
-    :ivar groups: The groups 
+    :ivar groups: The flat list of groups (:class:`keepassdb.model.Group`) in this database.
+    :ivar entries: The flat list of entries (:class:`keepassdb.model.Entry`) in this database.
     :ivar readonly: Whether database was opened read-only.
-    :ivar filepath: The path to the database that is opened or will be written.
+    :ivar filepath: The path to the database that is opened or will be written (if specified).
     :ivar password: The passphrase to use to encrypt the database.
     :ivar keyfile: A path to a keyfile that can be used instead or in combination with passphrase.
+    :ivar header: The database header struct (:class:`keepassdb.structs.HeaderStruct`).
     """
     root = None
+    groups = None # The flat list of :class:`keepassdb.model.Group` groups in this database.
+    entries = None
+    
     readonly = False
     header = None
     password = None
@@ -115,30 +119,51 @@ class Database(object):
         return self.create_group(u'Internet', icon=1)
                 
     def load(self, dbfile, password=None, keyfile=None, readonly=False):
+        """
+        Load the database from file/stream.
+        
+        :param dbfile: The database file path/stream.
+        :type dbfile: str or file-like object
+        :param password: The password for the database.
+        :type password: str
+        :param keyfile: Path to a keyfile (or a stream) that can be used instead of or in conjunction with password for database.
+        :type keyfile: str or file-like object
+        :param readonly: Whether to open the database read-only.
+        :type readonly: bool
+        """
+        
         self._clear()
         buf = None
-        if hasattr(dbfile, 'read'):
+        is_stream = hasattr(dbfile, 'read') 
+        if is_stream:
             buf = dbfile.read()
         else:
             if not os.path.exists(dbfile):
                 raise IOError("File does not exist: {}".format(dbfile))
             
-            # Assume it is a path and attempt to open it.
-            self.filepath = dbfile
-            
             with open(dbfile, 'rb') as fp:
                 buf = fp.read()
                 
         self.load_from_buffer(buf, password=password, keyfile=keyfile, readonly=readonly)
+        
+        # One we have successfully loaded the file, go ahead and set the internal attribute
+        # (in the LockingDatabase subclass, this will effectivley take out the lock on the file)
+        if not is_stream:
+            self.filepath = dbfile
+             
     
     def load_from_buffer(self, buf, password=None, keyfile=None, readonly=False):
         """
-        This method opens an existing database.
+        Load a database from passed-in buffer (bytes).
 
         :param buf: A string (bytes) of the database contents.
-        :param password:
-        :param keyfile:
+        :type buf: str
+        :param password: The password for the database.
+        :type password: str
+        :param keyfile: Path to a keyfile (or a stream) that can be used instead of or in conjunction with password for database.
+        :type keyfile: str or file-like object
         :param readonly: Whether to open the database read-only.
+        :type readonly: bool
         """
         if password is None and keyfile is None:
             raise ValueError("Password and/or keyfile is required.")
@@ -197,16 +222,15 @@ class Database(object):
         
     def save(self, dbfile=None, password=None, keyfile=None):
         """
-        Save the database.
-        
-        Password or keyfile (or both) required.  If database was loaded 
+        Save the database to specified file/stream with password and/or keyfile.
          
         :param dbfile: The path to the file we wish to save.
         :type dbfile: The path to the database file or a file-like object.
         
-        :param password: The password to use for the database.
-        :param keyfile: The keyfile to use for the database.
-        
+        :param password: The password to use for the database encryption key.
+        :type password: str
+        :param keyfile: The path to keyfile (or a stream) to use instead of or in conjunction with password for encryption key.
+        :type keyfile: str or file-like object
         :raise keepassdb.exc.ReadOnlyDatabase: If database was opened with readonly flag.
         """
         if self.readonly:
@@ -321,7 +345,7 @@ class Database(object):
 
     def remove_group(self, group):
         """
-        This method removes a group.
+        Remove the specified group.
         """
         if not isinstance(group, Group):
             raise TypeError("group must be Group")
@@ -342,7 +366,7 @@ class Database(object):
             
     def move_group(self, group, parent, index=None):
         """
-        Append group to a new parent.
+        Move group to be a child of new parent.
         
         :param group: The group to move.
         :type group: :class:`keepassdb.model.Group`
@@ -439,10 +463,11 @@ class Database(object):
         return entry
 
     def remove_entry(self, entry):
-        """This method can remove entries.
+        """
+        Remove specified entry.
         
         :param entry: The Entry object to remove.
-        :type entry: pwmanager.model.Entry
+        :type entry: :class:`keepassdb.model.Entry`
         """
         if not isinstance(entry, Entry):
             raise TypeError("entry param must be of type Entry.")
@@ -507,7 +532,10 @@ class Database(object):
         collapse_entries(self.root)
         
     def _bind_model(self):
-        """This method creates a group tree"""
+        """
+        This method binds the various model objects together in the correct hierarchy
+        and adds referneces to this database object in the groups.
+        """
 
         if self.groups[0].level != 0:
             self.log.info("Got invalid first group: {0}".format(self.groups[0]))

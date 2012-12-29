@@ -14,25 +14,23 @@ Database
 	
 .. automodule:: keepassdb.db
    :synopsis: The database classes provide the primary API to the db structure.
-   :members:
+   :members: Database, LockingDatabase
 
 Model
 -----
 
 .. automodule:: keepassdb.model
-    :synopsis: The entity objects that form the structure of the database.
-	:members:
+   :synopsis: The entity objects that form the structure of the database.
+   :members:
 
 Errors
 ------
 
 The exception classes raised by the library.
 
-.. module:: keepassdb.exc
-   :synopsis:The exception classes raised by the application.
-   
 .. automodule:: keepassdb.exc
-	:members:
+   :synopsis:The exception classes raised by the application.
+   :members:
 	
 Under-the-Hood
 ==============
@@ -42,9 +40,7 @@ parsing and serialization code.
 
 Parsing
 -------
-
-.. module:: keepassdb.structs
-   :synopsis: Under-the-hood database parsing and encoding.
       
 .. automodule:: keepassdb.structs
+   :synopsis: Under-the-hood database parsing and encoding.
    :members:

@@ -76,6 +76,8 @@ class RootGroup(object):
     """
     A group-like object that serves as the root node of the tree.
     
+    This is the `root` attribute of the :class:`keepassdb.db.Database` instance.
+    
     This object is not written to the database; it simply exists to provide
     a virtual node from which to make the top-level groups children.
     """
@@ -274,7 +276,41 @@ class Entry(BaseModel):
         """
         Initialize a Entry-instance with provided attributes.
         
-        Generally Entry objects should be created using the Group.create_entry() method.
+        Typically Entry objects should be created using the :meth:`Group.create_entry` method 
+        which will additionally bind the entry to the group.
+        
+        :keyword uuid: The ID for the entry.
+        :type uuid: str (16 bytes)
+        
+        :keyword group_id: The numeric ID for the group.
+        :type group_id: int
+        
+        :keyword group: The group object that this entity is related to.
+        :type group: :class:`Group`
+        
+        :keyword icon: The icon identifier.
+        :type icon: int
+        
+        :keyword notes: Notes/comment for the entry.
+        :type notes: unicode
+        
+        :keyword created: When entry was created (default: now)
+        :type created: :class:`datetime.datetime`
+        
+        :keyword modified: When entry was last modified (default: now)
+        :type modified: :class:`datetime.datetime`
+        
+        :keyword accessed: When the entry was last accessed (default: now)
+        :type accessed: :class:`datetime.datetime`
+        
+        :keyword expires: When the entry (password) expires.  Default will be :ref:`keepassdb.const.NEVER`.
+        :type expires :class:`datetime.datetime`
+        
+        :keyword binary_desc: Description/metadata for the binary column.
+        :type binary_desc: unicode
+        
+        :keyword binary: Binary contents.
+        :type binary: str
         """
         super(Entry, self).__init__()
         if icon is None:
@@ -292,6 +328,7 @@ class Entry(BaseModel):
         # these entries from the database.  (Probably needs to be more comprehensive.)
         if title is None: title = u''
         if notes is None: notes = u''
+        if url is None: url = u''
         if binary_desc is None: binary_desc = u''
         
         self.uuid = uuid
