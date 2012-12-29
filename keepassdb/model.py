@@ -80,6 +80,10 @@ class RootGroup(object):
     
     This object is not written to the database; it simply exists to provide
     a virtual node from which to make the top-level groups children.
+    
+    :ivar title: The title for the group ('Root Group')
+    :ivar level: The hierarchy level / depth in tree; This is -1 for root group. 
+    :ivar children: List of children groups (:class:`keepassdb.model.Group`)
     """
     parent = None
     level = -1
@@ -95,18 +99,17 @@ class RootGroup(object):
         return '<RootGroup>'
     
 class Group(BaseModel):
-    """Group represents a simple group of a KeePass 1.x database.
+    """
+    Represents a single group of a KeePass 1.x database.
     
-    Attributes:
-    - id is the group id (unsigned int)
-    - title is the group title (string)
-    - image is the image number used in KeePassX (unsigned int)
-    - level is needed to create the group tree (unsigned int)
-    - parent is the previous group (Group)
-    - children is a list of all following groups (list of StdGroups)
-    - entries is a list of all entries of the group (list of StdEntrys)
-    - db is the database which holds the group (KPDB)
-    
+    :ivar db: The parent database (:class:`keepassdb.db.Database`)
+    :ivar id: The group numeric id (unsigned int)
+    :ivar title: The group title (string)
+    :ivar level: The hierarchy level / depth in tree (unsigned int)
+    :ivar icon: The group icon identifier used in KeePassX (unsigned int)
+    :ivar parent: The parent group (:class:`keepassdb.model.Group`)
+    :ivar children: List of children groups (:class:`keepassdb.model.Group`)
+    :ivar entries: List of member entries (:class:`keepassdb.model.Entry`)
     """
     
     # These are the shadow attribs for our getters and setters
@@ -248,21 +251,21 @@ class Group(BaseModel):
 class Entry(BaseModel):
     """Entry represents a simple entry of a KeePass 1.x database.
     
-    Attributes:
-        - uuid is an "Universal Unique ID", that is it identifies the entry (16 bytes string)
-        - group_id is the id of the holding group (unsigned int)
-        - group is the holding Group instance
-        - image is the image number (unsigned int)
-        - title is the entry title (string)
-        - url is an url to a website where the login information of this entry (string)
-          can be used
-        - username is an username (string)
-        - password is the password (string)
-        - creation is the creation date of this entry (datetime-instance)
-        - last_mod is the date of the last modification (datetime-instance)
-        - last_access is the date of the last access (datetime-instance)
-        - expire is the date when the entry should expire (datetime-instance)
-        - comment is a comment string
+    :ivar uuid: The ID for the entry.
+    :ivar group_id: The numeric ID for the group.
+    :ivar group: The group object that this entity is related to.
+    :ivar icon: The icon identifier.
+    :ivar title: The title for the entry.
+    :ivar username: The username.        
+    :ivar password: The password
+    :ivar url: The entry URL.
+    :ivar notes: Notes/comment for the entry.
+    :ivar created: When entry was created (default: now)
+    :ivar modified: When entry was last modified (default: now)
+    :ivar accessed: When the entry was last accessed (default: now)
+    :ivar expires: When the entry (password) expires.  Default will be :ref:`keepassdb.const.NEVER`.
+    :ivar binary_desc: Description/metadata for the binary column.
+    :ivar binary: Binary contents.
     """ 
     
     struct_type = EntryStruct
@@ -290,6 +293,18 @@ class Entry(BaseModel):
         
         :keyword icon: The icon identifier.
         :type icon: int
+
+        :keyword title: The title for the entry.
+        :type username: unicode
+
+        :keyword username: The username.
+        :type username: unicode
+        
+        :keyword password: The password
+        :type password: unicode
+        
+        :keyword url: The entry URL.
+        :type url: unicode
         
         :keyword notes: Notes/comment for the entry.
         :type notes: unicode
