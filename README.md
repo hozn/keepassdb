@@ -1,7 +1,7 @@
 # keepassdb
 
 **IMPORTANT**
-This library is in rough and under active development.  Tread carefully!
+This library is alpha-quality/stability. Tread carefully!
 
 keepassdb is a python module to provide an API to read and write KeePass 1.x / KeePassX 
 database files.
@@ -19,8 +19,8 @@ This project is currently for Python 2.x only.
 This software is licensed under the GPLv3 (or later), in accordance with the upstream libraries and 
 the KeePass project itself.
 
-Homepage: https://github.com/hozn/keepassdb
-Project Documentation: http://packages.python.org/keepassdb/
+* Homepage: https://github.com/hozn/keepassdb
+* Project Documentation: http://packages.python.org/keepassdb/
  
 ## Dependencies
  
