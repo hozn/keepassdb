@@ -23,7 +23,7 @@ If you are opening a database in an environment where other applications may als
 the database, you should use the :class:`keepassdb.db.LockingDatabase` class which will create a .lock file.
 
 Typically the lock file is created automatically when the database is parsed or the filepath changes (e.g.
-if a new path is specified to the :meth:`keepassdb.db.Database.save` method. ::
+if a new path is specified to the :meth:`keepassdb.db.Database.save` method). ::
   
     from keepassdb import LockingDatabase
     db = LockingDatabase('./example.kdb', password='test')
@@ -42,7 +42,7 @@ More explicit control is also possible. ::
         
 You may wish to use the context manager which provides some syntactic simplification.::
  
-    with LockingDatabase(opts.database, password=opts.password) as db:
+    with LockingDatabase('./example.kdb', password='test') as db:
         # Do stuff with the database here.
         db.save()
     
@@ -99,7 +99,7 @@ useful for just viewing the contents::
 
     import json
     db = Database('./example.kdb', password='test')
-    d = db.to_dict(hide_passwords=True)
+    d = db.to_dict(hide_passwords=False)
     data = json.dumps(d)
     
 Creating Database Contents
@@ -126,8 +126,8 @@ The filename (and password/keyfile) may also be specified at database initializa
 :class:`keepassdb.db.LockingDatabase` since the .lock file will be created automatically), but the 
 `new` parameter must then also be specified (so that the constructor does not attempt to load the database)::
 
-    db = LockingDatabase('./example.kdb', password='test', new=True)
-    # Add stuff
-    db.save()
+    with LockingDatabase('./example.kdb', password='test', new=True) as db:
+    	# Add stuff to the database.
+    	db.save()
    
    
