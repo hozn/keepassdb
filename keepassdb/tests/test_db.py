@@ -1,14 +1,15 @@
 """
 Unit tests for the main Database class.
 """
-import os.path
-from StringIO import StringIO
+from __future__ import print_function, unicode_literals
 
-from freezegun import freeze_time
+import os.path
+from io import BytesIO
+
+#from freezegun import freeze_time
 
 from keepassdb import Database, model, exc
-
-from tests import TestBase, RESOURCES_DIR
+from keepassdb.tests import TestBase, RESOURCES_DIR
 
 class DatabaseTest(TestBase):
         
@@ -17,12 +18,12 @@ class DatabaseTest(TestBase):
         with self.assertRaises(IOError):
             db = Database('./missing-path.kdb')
     
-    @freeze_time("2012-12-25 08:00:00")    
+    #@freeze_time("2012-12-25 08:00:00")    
     def test_init_new(self):
         """ Test initializing new database. """
         db = Database()
         db.create_default_group()
-        exp_g = model.Group(title=u'Internet', icon=1, level=0, id=1, db=db, parent=db.root)
+        exp_g = model.Group(title="Internet", icon=1, level=0, id=1, db=db, parent=db.root)
         
         self.assertEquals(1, len(db.groups))
         self.assertEquals(exp_g.__dict__, db.groups[0].__dict__)
@@ -47,7 +48,7 @@ class DatabaseTest(TestBase):
         db = Database()
         kdb = os.path.join(RESOURCES_DIR, 'example.kdb')
         with open(kdb, 'rb') as fp:
-            stream = StringIO(fp.read())
+            stream = BytesIO(fp.read())
             stream.seek(0)
             with self.assertRaisesRegexp(ValueError, r'Password and/or keyfile is required.'):
                 db.load(stream)
@@ -60,7 +61,7 @@ class DatabaseTest(TestBase):
         kdb = os.path.join(RESOURCES_DIR, 'example.kdb')
         db.load(kdb, password='test')
         
-        print db.groups
+        print(db.groups)
         
         # Make assertions about the structure.
         top_groups = [g.title for g in db.root.children]
@@ -71,24 +72,24 @@ class DatabaseTest(TestBase):
         
         # Good enough for now ;)
     
-    @freeze_time("2012-12-25 08:00:00")        
+    #@freeze_time("2012-12-25 08:00:00")        
     def test_save(self):
         """ Test creating and saving a database. """
         
         db = Database()
         i_group = db.create_default_group()
-        e_group = db.create_group(title=u'eMail')
+        e_group = db.create_group(title="eMail")
         
-        e1 = i_group.create_entry(title=u'FirstEntry', username=u'root', password=u'test', url=u'http://example.com')
-        e2 = i_group.create_entry(title=u'SecondEntry', username=u'root', password=u'test', url=u'http://example.com')
-        e3 = e_group.create_entry(title=u'ThirdEntry', username=u'root', password=u'test', url=u'http://example.com')
+        e1 = i_group.create_entry(title="FirstEntry", username="root", password="test", url="http://example.com")
+        e2 = i_group.create_entry(title="SecondEntry", username="root", password="test", url="http://example.com")
+        e3 = e_group.create_entry(title="ThirdEntry", username="root", password="test", url="http://example.com")
         
         ser = db.to_dict(hierarchy=True, hide_passwords=True)
         
         with self.assertRaisesRegexp(ValueError, r"Unable to save without target file."):
             db.save(password='test')
         
-        stream = StringIO()
+        stream = BytesIO()
         db.save(dbfile=stream, password='test')
         
         stream.seek(0)
@@ -103,5 +104,3 @@ class DatabaseTest(TestBase):
         
         self.assertEquals(ser, db.to_dict(hierarchy=True, hide_passwords=True))
         
-class LockingDabaseTest(TestBase):
-    pass

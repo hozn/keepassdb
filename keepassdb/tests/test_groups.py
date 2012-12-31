@@ -1,14 +1,11 @@
 """
 Unit tests for group-related operations.
 """
+from __future__ import print_function
 import os.path
-from StringIO import StringIO
 
-from freezegun import freeze_time
-
-from keepassdb import Database, model, exc
-
-from tests import TestBase, RESOURCES_DIR
+from keepassdb import Database
+from keepassdb.tests import TestBase, RESOURCES_DIR
 
 class GroupTest(TestBase):
         
@@ -18,11 +15,11 @@ class GroupTest(TestBase):
         
         group = self.get_group_by_name(db, 'B1')
         new_parent = self.get_group_by_name(db, 'A1')
-        print new_parent
+        print(new_parent)
         
         group.move(new_parent) 
         
-        print "After move: " + repr(group.parent)
+        print("After move: " + repr(group.parent))
         
         self.assertEquals(new_parent, group.parent)
         

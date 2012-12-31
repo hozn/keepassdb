@@ -75,7 +75,7 @@ class MarshallString(Marshall):
         """
         if val is None:
             val = u''
-        return val.encode('utf-8') + '\0'
+        return val.encode('utf-8') + b'\0'
     
     def decode(self, buf):
         """
@@ -85,12 +85,7 @@ class MarshallString(Marshall):
         :type buf: str
         :rtype: unicode
         """
-        return buf.rstrip('\0').decode('utf-8')
-
-def ascii_de():
-    from binascii import b2a_hex, a2b_hex
-    return (lambda buf:b2a_hex(buf).replace('\0',''), 
-            lambda val:a2b_hex(val)+'\0')
+        return buf.rstrip(b'\0').decode('utf-8')
     
 class MarshallAscii(Marshall):
     """
@@ -560,21 +555,21 @@ class HeaderStruct(object):
         Returns binary string representation of this struct.
         
         :returns: Structure encoded as binary string for keepass database.
-        :rtype: str
+        :rtype: bytes
         """
-        ret = ""
-        for name, bytes, typecode in self.format:
+        ret = bytearray()
+        for name, len, typecode in self.format:
             value = getattr(self, name)
             buf = struct.pack('<' + typecode, value)
-            ret += buf
-        return ret
+            ret.extend(buf)
+        return bytes(ret)
 
     def decode(self, buf):
         """
         Set object attributes from binary string buffer.
         
         :param buf: The binary string representation of this struct from database.
-        :type buf: str 
+        :type buf: bytes 
         """
         index = 0
         if self.length > len(buf):

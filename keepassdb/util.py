@@ -80,8 +80,8 @@ def key_from_password(password):
     """This method just hashes self.password."""
     if isinstance(password, unicode):
         password = password.encode('utf-8')
-    if not isinstance(password, str):
-        raise TypeError("password must be byte string")
+    if not isinstance(password, bytes):
+        raise TypeError("password must be byte string, not %s" % type(password))
     
     sha = SHA256.new()
     sha.update(password)
@@ -110,13 +110,14 @@ def decrypt_aes_cbc(ciphertext, key, iv):
     
     :rtype: str
     """
-    if not isinstance(ciphertext, str):
+    if not isinstance(ciphertext, bytes):
         raise TypeError("content to decrypt must by bytes.")
     
     # Just decrypt the content with the created key
     aes = AES.new(key, AES.MODE_CBC, iv)
     decrypted_content = aes.decrypt(ciphertext)
-    padding = ord(decrypted_content[-1])
+    padding = ord(decrypted_content[-1:len(decrypted_content)])  # This is a difference in python2 vs python3, so we are explicit about
+                                            # the range so that return value is the same.
     decrypted_content = decrypted_content[:len(decrypted_content) - padding]
     return decrypted_content
 
@@ -124,7 +125,7 @@ def encrypt_aes_cbc(cleartext, key, iv):
     """
     This method encrypts the content.
     
-    :rtype: str
+    :rtype: bytes
     """
     if isinstance(cleartext, unicode):
         cleartext = cleartext.encode('utf8')

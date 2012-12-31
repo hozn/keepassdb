@@ -47,18 +47,19 @@ setup(
     license = "GPLv3",
     description = "Python library for reading and writing KeePass 1.x databases.",
     long_description = long_description,
-    packages = find_packages(exclude=["*.tests", "*.tests.*", "tests.*", "tests"]),
+    packages = find_packages(),
     install_requires=['pycrypto>=2.6,<3.0dev'],
-    tests_require = ['nose', 'unittest2', 'freezegun'],
-    test_suite = 'nose.collector',
+    tests_require = ['nose', 'freezegun'],
+    test_suite = 'keepassdb.tests',
+    #test_suite = 'nose.collector',
     classifiers=[
        'Development Status :: 3 - Alpha',
        'License :: OSI Approved :: GNU General Public License (GPL)',
        'Intended Audience :: Developers',
        'Operating System :: OS Independent',
-       'Programming Language :: Python :: 2.6',
        'Programming Language :: Python :: 2.7',
        'Topic :: Security :: Cryptography',
        'Topic :: Software Development :: Libraries :: Python Modules'
-    ]
+    ],
+    use_2to3=True
 )

@@ -1,10 +1,10 @@
 import os.path
-import unittest2
+from unittest import TestCase
 
 RESOURCES_DIR = os.path.join(os.path.dirname(__file__), 'resources')
 
 
-class TestBase(unittest2.TestCase):
+class TestBase(TestCase):
     
     def setUp(self):
         super(TestBase, self).setUp()

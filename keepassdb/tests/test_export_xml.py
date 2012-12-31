@@ -1,16 +1,15 @@
 """
 Unit tests for group-related operations.
 """
+from __future__ import print_function
 import os.path
 #from xml.dom import minidom
 from xml.etree import ElementTree as ET
 
-from freezegun import freeze_time
-
 from keepassdb import Database, model, exc
 from keepassdb.export.xml import XmlExporter
 
-from tests import TestBase, RESOURCES_DIR
+from keepassdb.tests import TestBase, RESOURCES_DIR
 
 class XmlExporterTest(TestBase):
         
