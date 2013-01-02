@@ -108,7 +108,7 @@ def decrypt_aes_cbc(ciphertext, key, iv):
     """
     This method decrypts contents and strips padding.
     
-    :rtype: str
+    :rtype: bytes
     """
     if not isinstance(ciphertext, bytes):
         raise TypeError("content to decrypt must by bytes.")
@@ -130,13 +130,13 @@ def encrypt_aes_cbc(cleartext, key, iv):
     if isinstance(cleartext, unicode):
         cleartext = cleartext.encode('utf8')
     elif isinstance(cleartext, bytearray):
-        cleartext = str(cleartext)
-    if not isinstance(cleartext, str):
+        cleartext = bytes(cleartext)
+    if not isinstance(cleartext, bytes):
         raise TypeError("content to encrypt must by bytes.")
     
     aes = AES.new(key, AES.MODE_CBC, iv)
     padding = AES.block_size - (len(cleartext) % AES.block_size)
-    cleartext += chr(padding) * padding
+    cleartext += chr(padding).encode('utf-8') * padding # the encode() is for py3k compat
     return aes.encrypt(cleartext)
 
 def now():

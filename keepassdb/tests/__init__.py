@@ -1,5 +1,13 @@
 import os.path
-from unittest import TestCase
+import sys
+
+if sys.version_info < (2, 7):
+    try:
+        from unittest2 import TestCase
+    except ImportError:
+        raise Exception("Need unittest2 for running tests under python 2.6")
+else:
+    from unittest import TestCase
 
 RESOURCES_DIR = os.path.join(os.path.dirname(__file__), 'resources')
 

@@ -48,8 +48,10 @@ setup(
     description = "Python library for reading and writing KeePass 1.x databases.",
     long_description = long_description,
     packages = find_packages(),
+    include_package_data=True,
+    package_data={'keepassdb': ['tests/resources/*']},
     install_requires=['pycrypto>=2.6,<3.0dev'],
-    tests_require = ['nose', 'freezegun'],
+    tests_require = ['nose>=1.0.3', 'freezegun'],
     test_suite = 'keepassdb.tests',
     #test_suite = 'nose.collector',
     classifiers=[

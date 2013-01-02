@@ -2,7 +2,7 @@
 *.egg
 *.egg-info
 *.pyc
-env
+env*
 build
 dist
 *.kdb

@@ -24,7 +24,7 @@ class XmlExporterTest(TestBase):
         tree = ET.fromstring(output)
         entries = tree.findall('.//entry')
         
-        s1 = set([e.find('./title').text for e in entries])
+        s1 = set([e.find('./title').text.strip() for e in entries])
         s2 = set([e.title for e in db.entries if e.title != 'Meta-Info'])
         self.assertEquals(s2, s1)
         

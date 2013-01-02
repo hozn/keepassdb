@@ -61,7 +61,7 @@ class DatabaseTest(TestBase):
         kdb = os.path.join(RESOURCES_DIR, 'example.kdb')
         db.load(kdb, password='test')
         
-        print(db.groups)
+        #print(db.groups)
         
         # Make assertions about the structure.
         top_groups = [g.title for g in db.root.children]
@@ -98,6 +98,7 @@ class DatabaseTest(TestBase):
             db.load(dbfile=stream, password='wrong')
         
         stream.seek(0)
+        
         db.load(dbfile=stream, password='test')
         
         self.maxDiff = None

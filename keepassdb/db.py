@@ -139,7 +139,7 @@ class Database(object):
             buf = dbfile.read()
         else:
             if not os.path.exists(dbfile):
-                raise IOError("File does not exist: {}".format(dbfile))
+                raise IOError("File does not exist: {0}".format(dbfile))
             
             with open(dbfile, 'rb') as fp:
                 buf = fp.read()
@@ -193,14 +193,19 @@ class Database(object):
                                     rounds=self.header.key_enc_rounds,
                                     password=password, keyfile=keyfile)
         
+        # FIXME: Remove this once we've tracked down issues.
+        self.log.debug("(load) Final key: {0!r}, pass={1}".format(final_key, password))
+        
         decrypted_content = util.decrypt_aes_cbc(crypted_content, key=final_key, iv=self.header.encryption_iv)
         
         # Check if decryption failed
         if ((len(decrypted_content) > const.DB_MAX_CONTENT_LEN) or
             (len(decrypted_content) == 0 and self.header.ngroups > 0)):
             raise exc.IncorrectKey("Decryption failed! The key is wrong or the file is damaged.")
-
+        
         if not self.header.contents_hash == hashlib.sha256(decrypted_content).digest():
+            self.log.debug("Decrypted content: {0!r}".format(decrypted_content))
+            self.log.error("Hash mismatch. Header hash = {0!r}, hash of contents = {1!r}".format(self.header.contents_hash,                                                                                                 hashlib.sha256(decrypted_content).digest()))
             raise exc.AuthenticationError("Hash test failed. The key is wrong or the file is damaged.")
             
         # First thing (after header) are the group definitions.
@@ -275,11 +280,16 @@ class Database(object):
         header.key_enc_rounds = 50000
         header.seed_key = get_random_bytes(32)
         
+        # Convert buffer to bytes for API simplicity
+        buf = bytes(buf)
+        
         # Generate new seed & vector; update content hash        
         header.encryption_iv = get_random_bytes(16)
         header.seed_rand = get_random_bytes(16)
         header.contents_hash = hashlib.sha256(buf).digest()
         
+        self.log.debug("(Unencrypted) content: {0!r}".format(buf))
+        self.log.debug("Generating hash for {0}-byte content: {1}".format(len(buf), hashlib.sha256(buf).digest()))
         # Update num groups/entries to match curr state
         header.nentries = len(self.entries)
         header.ngroups = len(self.groups)
@@ -288,6 +298,9 @@ class Database(object):
                                     seed_rand=header.seed_rand,
                                     rounds=header.key_enc_rounds,
                                     password=password, keyfile=keyfile)
+        
+        # FIXME: Remove this once we've tracked down issues.
+        self.log.debug("(save) Final key: {0!r}, pass={1}".format(final_key, password))
         
         encrypted_content = util.encrypt_aes_cbc(buf, key=final_key, iv=header.encryption_iv)
         

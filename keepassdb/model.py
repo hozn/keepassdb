@@ -344,6 +344,7 @@ class Entry(BaseModel):
         if title is None: title = u''
         if notes is None: notes = u''
         if url is None: url = u''
+        if binary is None: binary = b''
         if binary_desc is None: binary_desc = u''
         
         self.uuid = uuid
