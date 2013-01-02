@@ -9,13 +9,8 @@ Documentation
 **keepassdb** is a python library for reading and writing `KeePass <http://keepass.info>`_ 1.x database files.  (This is the format
 also used by `KeePassX <http://keepassx.org>`_.)
 
-This library is designed to be simple and easy-to-use, support modern versions of Python (currently 3.x is 
-not supported, but that is on the short-term list), and provide a full set of reading and writing functionality.
-
-Planned features include (in roughly this order of priority):
- - XML export support (based on KeePassX XML)
- - Python 3.x support
- - Support for keepassx tree-state metadata 
+This library is designed to be simple and easy-to-use, support modern versions of Python (2.x and 3.x), and 
+provide a full set of reading and writing functionality.
 
 Changelog
 ---------

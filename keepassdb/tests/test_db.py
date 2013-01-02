@@ -6,8 +6,6 @@ from __future__ import print_function, unicode_literals
 import os.path
 from io import BytesIO
 
-#from freezegun import freeze_time
-
 from keepassdb import Database, model, exc
 from keepassdb.tests import TestBase, RESOURCES_DIR
 
@@ -18,7 +16,6 @@ class DatabaseTest(TestBase):
         with self.assertRaises(IOError):
             db = Database('./missing-path.kdb')
     
-    #@freeze_time("2012-12-25 08:00:00")    
     def test_init_new(self):
         """ Test initializing new database. """
         db = Database()
@@ -72,7 +69,6 @@ class DatabaseTest(TestBase):
         
         # Good enough for now ;)
     
-    #@freeze_time("2012-12-25 08:00:00")        
     def test_save(self):
         """ Test creating and saving a database. """
         
