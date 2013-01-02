@@ -26,7 +26,7 @@ class XmlExporter(object):
         """
         Export the dbnode to KeePassX XML format.
         
-        :param db: The dbnode to export.
+        :param db: The database to export.
         :type db: :class:`keepassdb.db.Database` 
         """
         dbnode = ET.Element('database')
