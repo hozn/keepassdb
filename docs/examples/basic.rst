@@ -84,23 +84,14 @@ the `groups` attributes directly::
     for e in db.entries:
         print '%s: %s' % (e.title, e.password)
 
-Export to Dict
---------------
-
-There are convenience methods to export the contents of the tree as a python dictionary.  This can be
-useful for just viewing the contents::
+You can use the `to_dict` methods to quickly view the contents of the database. ::
 
     from pprint import pprint
     db = Database('./example.kdb', password='test')
     d = db.to_dict(hide_passwords=True)
     pprint(d)
-    
-... Or perhaps exporting the database to other serialization formats such as YAML or JSON::
 
-    import json
-    db = Database('./example.kdb', password='test')
-    d = db.to_dict(hide_passwords=False)
-    data = json.dumps(d)
+(See :ref:`exporting` for more examples on database eporting.)    
     
 Creating Database Contents
 ==========================

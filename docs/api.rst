@@ -23,13 +23,22 @@ Model
    :synopsis: The entity objects that form the structure of the database.
    :members:
 
+Export
+------
+
+The export package contains classes for exporting the database.
+
+.. automodule:: keepassdb.export.xml
+   :synopsis: Exporter for the KeePassX XML format.
+   :members:
+
 Errors
 ------
 
 The exception classes raised by the library.
 
 .. automodule:: keepassdb.exc
-   :synopsis:The exception classes raised by the application.
+   :synopsis: The exception classes raised by the application.
    :members:
 	
 Under-the-Hood

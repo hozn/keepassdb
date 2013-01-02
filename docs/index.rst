@@ -58,7 +58,7 @@ Example code to get you started reading & writing keepass files.
    :maxdepth: 2
 
    examples/basic
-
+   examples/export
 
 API Reference
 -------------
