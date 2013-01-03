@@ -67,5 +67,6 @@ setup(
        'Topic :: Security :: Cryptography',
        'Topic :: Software Development :: Libraries :: Python Modules'
     ],
-    use_2to3=True
+    use_2to3=True,
+    zip_safe=False # Technically it should be fine, but there are issues w/ 2to3 
 )
