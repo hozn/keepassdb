@@ -14,7 +14,7 @@ Specifically this project owes its roots to:
 * [python-keepass](https://github.com/brettviren/python-keepass) by Brett Viren <brett.viren@gmail.com>, and
 * [kptool](https://github.com/shirou/kptool/) by Wakayama Shirou <shirou.faw@gmail.com>
 
-This project is currently for Python 2.x only.
+This project currently supports Python 2.x and 3.x (using 2to3).
 
 This software is licensed under the GPLv3 (or later), in accordance with the upstream libraries and 
 the KeePass project itself.
@@ -24,7 +24,7 @@ the KeePass project itself.
  
 ## Dependencies
  
-* Python 2.6+.  (This does not currently work with Python 3.)
+* Python 2.6+.  (This does work with Python 3.x using 2to3.)
 * Setuptools/Distribute
 * PyCrypto
 
