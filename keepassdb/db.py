@@ -365,12 +365,15 @@ class Database(object):
         if group not in self.groups:
             raise ValueError("Group doesn't exist / is not bound to this database.")
         
+        #save num entries and children before removal to avoid for loop problems
+        num_entries = len(group.entries)
+        for i in xrange(num_entries):
+            self.remove_entry(group.entries[0])
+
         # Recurse down to remove sub-groups
-        for child in group.children: # We may need to copy this to avoid CME (see below)
-            self.remove_group(child)
-        
-        for entry in group.entries:
-            self.remove_entry(entry)
+        num_children = len(group.children)
+        for i in xrange(num_children): # We may need to copy this to avoid CME (see below)
+            self.remove_group(group.children[0])
         
         # Finally remove group from the parent's list.
         group.parent.children.remove(group) # Concurrent modification exception? Parent in recursive stack is iterating ...
@@ -400,12 +403,11 @@ class Database(object):
             
         if parent is None:
             parent = self.root
+        elif parent not in self.groups:
+            raise exc.UnboundModelError("Parent group doesn't exist / is not bound to this database.")
             
         if group not in self.groups:
             raise exc.UnboundModelError("Group doesn't exist / is not bound to this database.")
-        
-        if parent not in self.groups:
-            raise exc.UnboundModelError("Parent group doesn't exist / is not bound to this database.")
         
         curr_parent = group.parent
         curr_parent.children.remove(group)
@@ -417,11 +419,18 @@ class Database(object):
             parent.children.insert(index, group)
             self.log.debug("Moving {0!r} to child of {1!r}, (at position {2!r})".format(group, parent, index))
         
+        #Recurse down and reset level of all moved nodes
+        def set_level(g):
+            g.level = g.parent.level + 1
+            for child in g.children:
+                set_level(child)
+
         group.parent = parent
+        set_level(group)
         group.modified = util.now()
         
         self._rebuild_groups()
-                    
+
         
     def _rebuild_groups(self):
         """
