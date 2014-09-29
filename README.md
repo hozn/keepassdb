@@ -51,12 +51,12 @@ Or more traditionally:
 ```python
 
 from keepassdb import Database
-db = Database('./test.kdb', password='test'):
+db = Database('./test.kdb', password='test')
 # Display a flat list of all groups and the entries in each group.
 for group in db.groups:
-	print group.name
+	print group.title
 	for entry in group.entries:
-		print "\t-%s" % entry.name
+		print "\t-%s" % entry.title
 ```
 
 ### Writing
